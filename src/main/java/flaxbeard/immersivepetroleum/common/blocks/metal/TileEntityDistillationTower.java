@@ -1,6 +1,8 @@
 package flaxbeard.immersivepetroleum.common.blocks.metal;
 
+import blusunrize.immersiveengineering.api.IEProperties;
 import blusunrize.immersiveengineering.common.Config.IEConfig;
+import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IAdvancedCollisionBounds;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IAdvancedSelectionBounds;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IGuiTile;
@@ -29,7 +31,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class TileEntityDistillationTower extends TileEntityMultiblockMetal<TileEntityDistillationTower, DistillationRecipe> implements IAdvancedSelectionBounds, IAdvancedCollisionBounds, IGuiTile
+public class TileEntityDistillationTower extends TileEntityMultiblockMetal<TileEntityDistillationTower, DistillationRecipe> implements IAdvancedSelectionBounds, IAdvancedCollisionBounds, IGuiTile, IEBlockInterfaces.IActiveState
 {
 	public static class TileEntityDistillationTowerParent extends TileEntityDistillationTower
 	{
@@ -56,7 +58,8 @@ public class TileEntityDistillationTower extends TileEntityMultiblockMetal<TileE
 
 	public NonNullList<ItemStack> inventory = NonNullList.withSize(4, ItemStack.EMPTY);
 	public MultiFluidTank[] tanks = new MultiFluidTank[]{new MultiFluidTank(24000), new MultiFluidTank(24000)};
-	public Fluid lastFluidOut = null;
+	//This list is so we don't throw a CME
+	ArrayList<FluidStack> fluidList;
 
 	@Override
 	public void readCustomNBT(NBTTagCompound nbt, boolean descPacket)
@@ -67,14 +70,6 @@ public class TileEntityDistillationTower extends TileEntityMultiblockMetal<TileE
 		operated = nbt.getBoolean("operated");
 		cooldownTicks = nbt.getInteger("cooldownTicks");
 		String lastFluidName = nbt.getString("lastFluidOut");
-		if (lastFluidName.length() > 0)
-		{
-			lastFluidOut = FluidRegistry.getFluid(lastFluidName);
-		}
-		else
-		{
-			lastFluidOut = null;
-		}
 		if (!descPacket)
 			inventory = Utils.readInventory(nbt.getTagList("inventory", 10), 6);
 	}
@@ -90,17 +85,11 @@ public class TileEntityDistillationTower extends TileEntityMultiblockMetal<TileE
 		nbt.setTag("tank1", tanks[1].writeToNBT(new NBTTagCompound()));
 		nbt.setBoolean("operated", operated);
 		nbt.setInteger("cooldownTicks", cooldownTicks);
-		nbt.setString("lastFluidOut", lastFluidOut == null ? "" : lastFluidOut.getName());
 		if (!descPacket)
 			nbt.setTag("inventory", Utils.writeInventory(inventory));
 	}
 
 	private boolean wasActive = false;
-
-	public boolean shouldRenderAsActive()
-	{
-		return cooldownTicks > 0 || super.shouldRenderAsActive();
-	}
 
 	@Override
 	public boolean hammerUseSide(EnumFacing side, EntityPlayer player, float hitX, float hitY, float hitZ)
@@ -170,8 +159,6 @@ public class TileEntityDistillationTower extends TileEntityMultiblockMetal<TileE
 				update = true;
 			}
 
-			int amountLeft = 80;
-
 			BlockPos outputPos = this.getPos().offset(facing.getOpposite(), 1).offset(facing.rotateY().getOpposite(), 1).offset(EnumFacing.DOWN, 1);
 			IFluidHandler output = FluidUtil.getFluidHandler(world, outputPos, facing.rotateY());
 
@@ -181,72 +168,24 @@ public class TileEntityDistillationTower extends TileEntityMultiblockMetal<TileE
 				output = FluidUtil.getFluidHandler(world, outputPos, facing.rotateYCCW());
 			}
 
-			if (output != null)
-			{
-				FluidStack targetFluidStack = null;
-				if (lastFluidOut != null)
-				{
-					for (FluidStack stack : this.tanks[1].fluids)
-					{
-						if (stack.getFluid() == lastFluidOut)
-						{
-							targetFluidStack = stack;
-						}
-					}
-				}
-				if (targetFluidStack == null)
-				{
-					int max = 0;
-					for (FluidStack stack : this.tanks[1].fluids)
-					{
-						if (stack.amount > max)
-						{
-							max = stack.amount;
-							targetFluidStack = stack;
-						}
-					}
-				}
-
-				Iterator<FluidStack> iterator = this.tanks[1].fluids.iterator();
-
-				lastFluidOut = null;
-				if (targetFluidStack != null)
-				{
-					FluidStack out = Utils.copyFluidStackWithAmount(targetFluidStack, Math.min(targetFluidStack.amount, 80), false);
+			if (output != null) {
+				fluidList = new ArrayList<>(this.tanks[1].fluids);
+				for (FluidStack fluidStack : fluidList) {
+					FluidStack out = Utils.copyFluidStackWithAmount(fluidStack, Math.min(fluidStack.amount, 100), false);
 					int accepted = output.fill(out, false);
-					if (accepted > 0)
-					{
-						lastFluidOut = targetFluidStack.getFluid();
+					if (accepted > 0) {
 						int drained = output.fill(Utils.copyFluidStackWithAmount(out, Math.min(out.amount, accepted), false), true);
-						this.tanks[1].drain(new FluidStack(targetFluidStack.getFluid(), drained), true);
-						//MultiFluidTank.drain(drained, targetFluidStack, this.tanks[1].fluids.iterator(), true);
+						this.tanks[1].drain(new FluidStack(fluidStack.getFluid(), drained), true);
 						update = true;
-					}
-					else
-					{
-						while (iterator.hasNext())
-						{
-							targetFluidStack = iterator.next();
-							out = Utils.copyFluidStackWithAmount(targetFluidStack, Math.min(targetFluidStack.amount, 80), false);
-							accepted = output.fill(out, false);
-							if (accepted > 0)
-							{
-								lastFluidOut = targetFluidStack.getFluid();
-								int drained = output.fill(Utils.copyFluidStackWithAmount(out, Math.min(out.amount, accepted), false), true);
-								this.tanks[1].drain(new FluidStack(targetFluidStack.getFluid(), drained), true);
-								//MultiFluidTank.drain(drained, targetFluidStack, this.tanks[1].fluids.iterator(), true);
-								update = true;
-								break;
-							}
-						}
 					}
 				}
 			}
 
 		}
 
+		int amount_prev = tanks[0].getFluidAmount();
 		ItemStack emptyContainer = Utils.drainFluidContainer(tanks[0], inventory.get(0), inventory.get(1), null);
-		if (!emptyContainer.isEmpty() && emptyContainer.getCount() > 0)
+		if (amount_prev != tanks[0].getFluidAmount())
 		{
 			if (!inventory.get(1).isEmpty() && OreDictionary.itemMatches(inventory.get(1), emptyContainer, true))
 				inventory.get(1).grow(emptyContainer.getCount());
@@ -488,8 +427,14 @@ public class TileEntityDistillationTower extends TileEntityMultiblockMetal<TileE
 	@Override
 	public boolean additionalCanProcessCheck(MultiblockProcess<DistillationRecipe> process)
 	{
-		return true;
+		int outputAmount = 0;
+		for (FluidStack outputFluid : process.recipe.fluidOutput){
+			outputAmount += outputFluid.amount;
+		}
+		return (this.tanks[1].getCapacity() >= this.tanks[1].getFluidAmount() + outputAmount);
 	}
+
+
 
 	@Override
 	public void doProcessOutput(ItemStack output)
@@ -666,5 +611,16 @@ public class TileEntityDistillationTower extends TileEntityMultiblockMetal<TileE
 		BlockPos target = getBlockPosForPos(targetPos);
 		TileEntity tile = world.getTileEntity(target);
 		return tile instanceof TileEntityDistillationTower ? (TileEntityDistillationTower) tile : null;
+	}
+
+	@Override
+	public boolean getIsActive() {
+		return cooldownTicks > 0 || super.shouldRenderAsActive();
+	}
+
+	@Override
+	public IEProperties.PropertyBoolInverted getBoolProperty(Class<? extends IEBlockInterfaces.IUsesBooleanProperty> inf)
+	{
+		return inf == IEBlockInterfaces.IActiveState.class ? IEProperties.DYNAMICRENDER : IEProperties.BOOLEANS[0];
 	}
 }

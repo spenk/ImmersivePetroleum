@@ -3,6 +3,7 @@ package flaxbeard.immersivepetroleum.common.blocks.multiblocks;
 import blusunrize.immersiveengineering.ImmersiveEngineering;
 import blusunrize.immersiveengineering.api.MultiblockHandler.IMultiblock;
 import blusunrize.immersiveengineering.api.crafting.IngredientStack;
+import blusunrize.immersiveengineering.client.ClientUtils;
 import blusunrize.immersiveengineering.common.IEContent;
 import blusunrize.immersiveengineering.common.blocks.BlockIEScaffoldSlab;
 import blusunrize.immersiveengineering.common.blocks.BlockTypes_MetalsAll;
@@ -16,6 +17,7 @@ import flaxbeard.immersivepetroleum.common.blocks.metal.BlockTypes_IPMetalMultib
 import flaxbeard.immersivepetroleum.common.blocks.metal.TileEntityDistillationTower;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.block.model.ItemCameraTransforms;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
@@ -30,6 +32,9 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 public class MultiblockDistillationTower implements IMultiblock
 {
 	public static MultiblockDistillationTower instance = new MultiblockDistillationTower();
+
+	@SideOnly(Side.CLIENT)
+	static ItemStack renderStack;
 
 	static ItemStack[][][] structure = new ItemStack[16][4][4];
 
@@ -139,16 +144,6 @@ public class MultiblockDistillationTower implements IMultiblock
 	}
 
 	@Override
-	public IBlockState getBlockstateFromStack(int index, ItemStack stack)
-	{
-		if (!stack.isEmpty() && stack.getItem() instanceof ItemBlock)
-		{
-			return ((ItemBlock) stack.getItem()).getBlock().getStateFromMeta(stack.getItemDamage());
-		}
-		return null;
-	}
-
-	@Override
 	public float getManualScale()
 	{
 		return 9;
@@ -167,12 +162,16 @@ public class MultiblockDistillationTower implements IMultiblock
 	@SideOnly(Side.CLIENT)
 	public void renderFormedStructure()
 	{
-		if (te == null)
-		{
-			te = new TileEntityDistillationTower.TileEntityDistillationTowerParent();
-		}
+		if(renderStack == null) renderStack = new ItemStack(IPContent.blockMetalMultiblock, 1, BlockTypes_IPMetalMultiblock.DISTILLATION_TOWER_PARENT.getMeta());
+		GlStateManager.translate(.25, .4, .25);
+		GlStateManager.translate(1.5, 6, 7);
+		GlStateManager.rotate(- 45, 0, 1, 0);
+		GlStateManager.rotate(- 20, 1, 0, 0);
+		GlStateManager.scale(16, 16, 16);
 
-		ImmersivePetroleum.proxy.renderTile((TileEntity) te);
+		GlStateManager.disableCull();
+		ClientUtils.mc().getRenderItem().renderItem(renderStack, ItemCameraTransforms.TransformType.GUI);
+		GlStateManager.enableCull();
 	}
 
 	@Override
@@ -331,7 +330,7 @@ public class MultiblockDistillationTower implements IMultiblock
 
 	static final IngredientStack[] materials = new IngredientStack[]{
 			new IngredientStack("scaffoldingSteel", 25),
-			new IngredientStack(new ItemStack(IEContent.blockMetalDecorationSlabs1, 33, BlockTypes_MetalDecoration1.STEEL_SCAFFOLDING_0.getMeta())),
+			new IngredientStack(new ItemStack(IEContent.blockMetalDecorationSlabs1, 30, BlockTypes_MetalDecoration1.STEEL_SCAFFOLDING_0.getMeta())),
 			new IngredientStack(new ItemStack(IEContent.blockMetalDevice1, 17, BlockTypes_MetalDevice1.FLUID_PIPE.getMeta())),
 			new IngredientStack(new ItemStack(IEContent.blockMetalDecoration0, 1, BlockTypes_MetalDecoration0.RS_ENGINEERING.getMeta())),
 			new IngredientStack(new ItemStack(IEContent.blockMetalDecoration0, 4, BlockTypes_MetalDecoration0.HEAVY_ENGINEERING.getMeta())),

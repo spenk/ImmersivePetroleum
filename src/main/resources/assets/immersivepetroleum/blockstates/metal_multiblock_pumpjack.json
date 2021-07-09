@@ -29,12 +29,6 @@
         }
       }
     ],
-    "type": {
-      "distillation_tower": {
-      },
-      "pumpjack": {
-      }
-    },
     "facing": {
       "north": {
         "transform": {

@@ -4,7 +4,8 @@
     "transform": "forge:default-block",
     "model": "minecraft:cube_all",
     "textures": {
-      "all": "immersiveengineering:blocks/storage_steel"
+      "all": "immersiveengineering:blocks/storage_steel",
+      "particle": "immersiveengineering:blocks/storage_steel"
     }
   },
   "variants": {
@@ -31,13 +32,17 @@
     ],
     "type": {
       "distillation_tower": {
+        "model": "immersiveengineering:ie_empty"
       },
       "pumpjack": {
+        "model": "immersiveengineering:ie_empty"
       },
       "pumpjack_parent": {
-      },
-      "distillation_tower_parent": {
+        "model": "immersiveengineering:ie_empty"
       }
+    },
+    "inventory": {
+      "model": "immersiveengineering:ie_empty"
     },
     "facing": {
       "north": {
@@ -71,20 +76,15 @@
     },
     "_0multiblockslave": {
       "false": {},
-      "true": {
-      }
+      "true": {}
     },
     "_1dynamicrender": {
       "false": {},
-      "true": {
-      }
+      "true": {}
     },
-    "boolean0": //Mirror
-    {
-      "false": {
-      },
-      "true": {
-      }
+    "boolean0": {
+      "false": {},
+      "true": {}
     }
   }
 }

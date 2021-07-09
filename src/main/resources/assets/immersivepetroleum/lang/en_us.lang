@@ -75,6 +75,8 @@ ie.manual.entry.pumpjack.name=Pumpjack
 ie.manual.entry.pumpjack.subtext=Pump, pump it up
 ie.manual.entry.pumpjack0=The Pumpjack is a multiblock that extracts Crude Oil from deposits situated underneath bedrock. The structure is formed by using the Engineering's Hammer on the Heavy Engineering Block on the second layer.
 ie.manual.entry.pumpjack1=The Pumpjack Tower uses <config;i;pumpjack_consumption> Flux/t to pump Crude Oil at a rate of <config;i;pumpjack_speed> mB/t. The produced oil is automatically ejected through the two side ports with orange dots.<br><br>The average Oil deposit will take <config;i;pumpjack_days> days to deplete, though adding more Pumpjacks can speed the process.<br><br>Applying a redstone signal to the control panel will halt the machine's process, this behavior can be inverted by use of the Engineer's Hammer.
+ie.manual.entry.pumpjack1alt=The Pumpjack Tower uses <config;i;pumpjack_consumption> Flux/t to pump Crude Oil at a rate of <config;i;pumpjack_speed> mB/t. The produced oil is automatically ejected through the two side ports.<br><br>The average Oil deposit will take <config;i;pumpjack_days> days to deplete, though adding more Pumpjacks can speed the process.<br><br>Applying a redstone signal to the control panel will halt the machine's process, this behavior can be inverted by use of the Engineer's Hammer. It requires pipes down to bedrock to function.
+
 
 ie.manual.entry.oil.name=Fluid Reservoirs
 ie.manual.entry.oil.subtext=Black gold
@@ -88,7 +90,7 @@ ie.manual.entry.oilDimInvalid=%3$s §l%1$s§r is a type of fluid reservoir that 
 ie.manual.entry.oilDimAny=%2$s §l%1$s§r is a type of fluid reservoir that can be found in any Dimension.
 ie.manual.entry.oilReplenish=<br>After the reservoir is depleted, %1$d mB/tick of trace %2$s can be extracted by a single Pumpjack.
 ie.manual.entry.oilBiomeValid=This reservoir will generate in %s Biomes.
-ie.manual.entry.oilBiomeInvalid=This reservoir will generate in %s Biomes.
+ie.manual.entry.oilBiomeInvalid=This reservoir will generate in any biome but %s Biomes.
 ie.manual.entry.oilBiomeAny=This reservoir will generate in any Biome.
 
 ie.manual.entry.asphalt.name=Asphalt Concrete

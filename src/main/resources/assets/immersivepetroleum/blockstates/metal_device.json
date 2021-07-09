@@ -10,16 +10,21 @@
     }
   },
   "variants": {
-    "inventory,type=gas_generator": [
-      {
+    "inventory": {
+        "model": "immersiveengineering:ie_six_sides"
+    },
+    "inventory,type=gas_generator": {
         "model": "immersivepetroleum:generator"
-      }
-    ],
+    },
+    "inventory,type=automatic_lubricator": {
+        "model": "immersivepetroleum:ie_empty"
+    },
     "type": {
-      "automatic_lubricator": {
-      },
       "gas_generator": {
         "model": "immersivepetroleum:generator"
+      },
+      "automatic_lubricator": {
+        "model": "immersiveengineering:ie_empty"
       }
     },
     "facing": {
@@ -69,6 +74,7 @@
     "_0multiblockslave": {
       "false": {},
       "true": {
+        "model": "immersiveengineering:ie_empty"
       }
     }
   }

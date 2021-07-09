@@ -2,7 +2,9 @@ package flaxbeard.immersivepetroleum.client;
 
 import blusunrize.immersiveengineering.api.ManualHelper;
 import blusunrize.immersiveengineering.api.ManualPageMultiblock;
+import blusunrize.immersiveengineering.client.ClientUtils;
 import blusunrize.immersiveengineering.client.IECustomStateMapper;
+import blusunrize.immersiveengineering.client.models.obj.IEOBJLoader;
 import blusunrize.immersiveengineering.common.IEContent;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IIEMetaBlock;
 import blusunrize.lib.manual.IManualPage;
@@ -15,15 +17,14 @@ import flaxbeard.immersivepetroleum.api.crafting.PumpjackHandler.ReservoirType;
 import flaxbeard.immersivepetroleum.client.model.ModelCoresampleExtended;
 import flaxbeard.immersivepetroleum.client.page.ManualPageBigMultiblock;
 import flaxbeard.immersivepetroleum.client.page.ManualPageSchematicCrafting;
-import flaxbeard.immersivepetroleum.client.render.MultiblockDistillationTowerRenderer;
 import flaxbeard.immersivepetroleum.client.render.MultiblockPumpjackRenderer;
 import flaxbeard.immersivepetroleum.client.render.RenderSpeedboat;
 import flaxbeard.immersivepetroleum.client.render.TileAutoLubricatorRenderer;
 import flaxbeard.immersivepetroleum.common.CommonProxy;
+import flaxbeard.immersivepetroleum.common.Config;
 import flaxbeard.immersivepetroleum.common.IPContent;
 import flaxbeard.immersivepetroleum.common.blocks.BlockIPFluid;
 import flaxbeard.immersivepetroleum.common.blocks.metal.TileEntityAutoLubricator;
-import flaxbeard.immersivepetroleum.common.blocks.metal.TileEntityDistillationTower;
 import flaxbeard.immersivepetroleum.common.blocks.metal.TileEntityPumpjack;
 import flaxbeard.immersivepetroleum.common.blocks.multiblocks.MultiblockDistillationTower;
 import flaxbeard.immersivepetroleum.common.blocks.multiblocks.MultiblockPumpjack;
@@ -52,7 +53,10 @@ import net.minecraftforge.client.ForgeHooksClient;
 import net.minecraftforge.client.event.ModelBakeEvent;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.model.ModelLoader;
+import net.minecraftforge.client.model.ModelLoaderRegistry;
+import net.minecraftforge.client.model.obj.OBJLoader;
 import net.minecraftforge.common.ForgeModContainer;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
@@ -79,8 +83,13 @@ public class ClientProxy extends CommonProxy
 	public static final String CAT_IP = "ip";
 
 	@Override
-	public void preInit()
-	{
+	public void preInit() {
+		ClientUtils.mc().getFramebuffer().enableStencil();
+		ModelLoaderRegistry.registerLoader(IEOBJLoader.instance);
+		OBJLoader.INSTANCE.addDomain(ImmersivePetroleum.MODID);
+		IEOBJLoader.instance.addDomain(ImmersivePetroleum.MODID);
+		MinecraftForge.EVENT_BUS.register(this);
+
 		RenderingRegistry.registerEntityRenderingHandler(EntitySpeedboat.class, RenderSpeedboat::new);
 	}
 
@@ -113,27 +122,32 @@ public class ClientProxy extends CommonProxy
 						}
 					});
 					boolean isMD = block == IPContent.blockMetalDevice;
-					for (int meta = isMD ? 1 : 0; meta < ieMetaBlock.getMetaEnums().length; meta++)
-					{
-						String location = loc.toString();
-						String prop = ieMetaBlock.appendPropertiesToState() ? ("inventory," + ieMetaBlock.getMetaProperty().getName() + "=" + ieMetaBlock.getMetaEnums()[meta].toString().toLowerCase(Locale.US)) : null;
-						if (ieMetaBlock.useCustomStateMapper())
-						{
-							String custom = ieMetaBlock.getCustomStateMapping(meta, true);
-							if (custom != null)
-								location += "_" + custom;
-						}
-						try
-						{
-							ModelLoader.setCustomModelResourceLocation(blockItem, meta, new ModelResourceLocation(location, prop));
-						} catch (NullPointerException npe)
-						{
-							throw new RuntimeException("WELP! apparently " + ieMetaBlock + " lacks an item!", npe);
+					if (block != IPContent.blockMetalMultiblock) {
+						for (int meta = isMD ? 1 : 0; meta < ieMetaBlock.getMetaEnums().length; meta++) {
+							String location = loc.toString();
+							String prop = ieMetaBlock.appendPropertiesToState() ? ("inventory," + ieMetaBlock.getMetaProperty().getName() + "=" + ieMetaBlock.getMetaEnums()[meta].toString().toLowerCase(Locale.US)) : null;
+							if (ieMetaBlock.useCustomStateMapper()) {
+								String custom = ieMetaBlock.getCustomStateMapping(meta, true);
+								if (custom != null)
+									location += "_" + custom;
+							}
+							try {
+								ModelLoader.setCustomModelResourceLocation(blockItem, meta, new ModelResourceLocation(location, prop));
+							} catch (NullPointerException npe) {
+								throw new RuntimeException("WELP! apparently " + ieMetaBlock + " lacks an item!", npe);
+							}
 						}
 					}
 					if (isMD)
 					{
 						ModelLoader.setCustomModelResourceLocation(blockItem, 0, new ModelResourceLocation(new ResourceLocation("immersivepetroleum", "auto_lube"), "inventory"));
+					}
+					if (block == IPContent.blockMetalMultiblock)
+					{
+						ModelLoader.setCustomModelResourceLocation(blockItem, 0, new ModelResourceLocation(new ResourceLocation("immersivepetroleum", "metal_multiblock_distillationtowerparent"), "inventory"));
+						ModelLoader.setCustomModelResourceLocation(blockItem, 1, new ModelResourceLocation(new ResourceLocation("immersivepetroleum", "metal_multiblock_distillationtowerparent"), "inventory"));
+						ModelLoader.setCustomModelResourceLocation(blockItem, 2, new ModelResourceLocation(new ResourceLocation("immersivepetroleum", "pumpjack"), "inventory"));
+						ModelLoader.setCustomModelResourceLocation(blockItem, 3, new ModelResourceLocation(new ResourceLocation("immersivepetroleum", "pumpjack"), "inventory"));
 					}
 				}
 				else if (block instanceof BlockIPFluid)
@@ -216,7 +230,7 @@ public class ClientProxy extends CommonProxy
 
 		ManualHelper.addEntry("pumpjack", CAT_IP,
 				new ManualPageMultiblock(ManualHelper.getManual(), "pumpjack0", MultiblockPumpjack.instance),
-				new ManualPages.Text(ManualHelper.getManual(), "pumpjack1"));
+				new ManualPages.Text(ManualHelper.getManual(), Config.IPConfig.Extraction.req_pipes ? "pumpjack1alt" : "pumpjack1"));
 
 
 		ArrayList<DistillationRecipe> recipeList = DistillationRecipe.recipeList;
@@ -275,10 +289,11 @@ public class ClientProxy extends CommonProxy
 				new ManualPages.Crafting(ManualHelper.getManual(), "automaticLubricator0", new ItemStack(IPContent.blockMetalDevice, 1, 0)),
 				new ManualPages.Text(ManualHelper.getManual(), "automaticLubricator1"));
 
-		ClientRegistry.bindTileEntitySpecialRenderer(TileEntityDistillationTower.TileEntityDistillationTowerParent.class, new MultiblockDistillationTowerRenderer());
 		ClientRegistry.bindTileEntitySpecialRenderer(TileEntityPumpjack.TileEntityPumpjackParent.class, new MultiblockPumpjackRenderer());
 		ClientRegistry.bindTileEntitySpecialRenderer(TileEntityAutoLubricator.class, new TileAutoLubricatorRenderer());
 		ForgeHooksClient.registerTESRItemStack(Item.getItemFromBlock(IPContent.blockMetalDevice), 0, TileEntityAutoLubricator.class);
+		ForgeHooksClient.registerTESRItemStack(Item.getItemFromBlock(IPContent.blockMetalMultiblock), 2, TileEntityPumpjack.TileEntityPumpjackParent.class);
+		ForgeHooksClient.registerTESRItemStack(Item.getItemFromBlock(IPContent.blockMetalMultiblock), 3, TileEntityPumpjack.TileEntityPumpjackParent.class);
 
 	}
 

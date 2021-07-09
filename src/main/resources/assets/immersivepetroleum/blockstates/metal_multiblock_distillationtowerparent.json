@@ -1,0 +1,86 @@
+{
+  "forge_marker": 1,
+  "defaults": {
+    "transform": "forge:default-block",
+    "custom": {
+      "flip-v": true
+    },
+    "textures": {
+      "particle": "immersiveengineering:blocks/storage_steel",
+      "#texture": "immersivepetroleum:multiblocks/distillation_tower"
+    }
+  },
+  "variants": {
+    "inventory": [{
+      "model": "immersivepetroleum:multiblock/distillation_tower.obj",
+      "transform": {
+        "scale": 0.0625,
+        "rotation": [{
+          "x": 20
+        },
+          {
+            "y": -45
+          }
+        ],
+        "translation": [
+          0.0,
+          -0.35,
+          0.0
+        ]
+      }
+    }],
+    "type": {
+      "distillation_tower_parent": {}
+    },
+    "facing": {
+      "north": {
+        "transform": {
+          "rotation": {
+            "y": 0
+          }
+        }
+      },
+      "south": {
+        "transform": {
+          "rotation": {
+            "y": 180
+          }
+        }
+      },
+      "west": {
+        "transform": {
+          "rotation": {
+            "y": 90
+          }
+        }
+      },
+      "east": {
+        "transform": {
+          "rotation": {
+            "y": -90
+          }
+        }
+      }
+    },
+    "_0multiblockslave": {
+      "false": {},
+      "true": {}
+    },
+    "boolean0": {
+      "false": {
+        "model": "immersivepetroleum:multiblock/distillation_tower.obj"
+      },
+      "true": {
+        "model": "immersivepetroleum:multiblock/distillation_tower_mirrored.obj"
+      }
+    },
+    "_1dynamicrender": {
+      "false": {},
+      "true": {
+        "textures": {
+          "#texture": "immersivepetroleum:multiblocks/distillation_tower_active"
+        }
+      }
+    }
+  }
+}

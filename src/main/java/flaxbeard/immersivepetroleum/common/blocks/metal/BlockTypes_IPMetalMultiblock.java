@@ -8,7 +8,7 @@ import java.util.Locale;
 public enum BlockTypes_IPMetalMultiblock implements IStringSerializable, BlockIPBase.IBlockEnum
 {
 	DISTILLATION_TOWER(false),
-	DISTILLATION_TOWER_PARENT(false),
+	DISTILLATION_TOWER_PARENT(true),
 	PUMPJACK(false),
 	PUMPJACK_PARENT(false);
 

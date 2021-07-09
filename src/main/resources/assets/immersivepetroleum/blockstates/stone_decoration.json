@@ -5,6 +5,13 @@
     "model": "cube_all"
   },
   "variants": {
+    "inventory": [
+      {
+        "textures": {
+          "all": "immersivepetroleum:blocks/stone_decoration_asphalt"
+        }
+      }
+    ],
     "inventory,type=asphalt": [
       {
         "textures": {

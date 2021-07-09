@@ -13,22 +13,25 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumBlockRenderType;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraftforge.common.property.Properties;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 public class BlockIPMetalMultiblocks extends BlockIPMultiblock<BlockTypes_IPMetalMultiblock>
 {
-	public BlockIPMetalMultiblocks()
-	{
+	public BlockIPMetalMultiblocks() {
 		super("metal_multiblock", Material.IRON, PropertyEnum.create("type", BlockTypes_IPMetalMultiblock.class), ItemBlockIPBase.class, IEProperties.DYNAMICRENDER, IEProperties.BOOLEANS[0], Properties.AnimationProperty, IEProperties.OBJ_TEXTURE_REMAP);
 		setHardness(3.0F);
 		setResistance(15.0F);
 		this.setAllNotNormalBlock();
 		lightOpacity = 0;
+		this.setMetaBlockLayer(BlockTypes_IPMetalMultiblock.DISTILLATION_TOWER_PARENT.getMeta(), BlockRenderLayer.CUTOUT);
 	}
 
 	@Override
@@ -43,6 +46,13 @@ public class BlockIPMetalMultiblocks extends BlockIPMultiblock<BlockTypes_IPMeta
 		if (BlockTypes_IPMetalMultiblock.values()[meta].needsCustomState())
 			return BlockTypes_IPMetalMultiblock.values()[meta].getCustomState();
 		return null;
+	}
+
+	@Override
+	public IBlockState getActualState(IBlockState state, IBlockAccess world, BlockPos pos)
+	{
+		state = super.getActualState(state, world, pos);
+		return state;
 	}
 
 	@Override
@@ -318,11 +328,5 @@ public class BlockIPMetalMultiblocks extends BlockIPMultiblock<BlockTypes_IPMeta
 			return ((TileEntityDistillationTower) te).isLadder();
 		}
 		return false;
-	}
-
-	@Deprecated
-	public EnumBlockRenderType getRenderType(IBlockState state)
-	{
-		return EnumBlockRenderType.ENTITYBLOCK_ANIMATED;
 	}
 }
