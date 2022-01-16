@@ -1,36 +1,31 @@
 package flaxbeard.immersivepetroleum.common.blocks.tileentities;
 
-import java.util.Arrays;
-import java.util.List;
-
 import blusunrize.immersiveengineering.api.Lib;
 import blusunrize.immersiveengineering.common.EventHandler;
+import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IBlockOverlayText;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IPlayerInteraction;
-import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.ITileDrop;
 import blusunrize.immersiveengineering.common.util.Utils;
 import flaxbeard.immersivepetroleum.api.crafting.LubricantHandler;
 import flaxbeard.immersivepetroleum.api.crafting.LubricatedHandler;
-import flaxbeard.immersivepetroleum.api.crafting.LubricatedHandler.ILubricationHandler;
 import flaxbeard.immersivepetroleum.common.IPTileTypes;
 import flaxbeard.immersivepetroleum.common.blocks.metal.AutoLubricatorBlock;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.loot.LootContext;
-import net.minecraft.loot.LootParameters;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.tileentity.ITickableTileEntity;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.Direction;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.text.IFormattableTextComponent;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.capabilities.Capability;
@@ -42,25 +37,28 @@ import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler.FluidAction;
 import net.minecraftforge.fluids.capability.templates.FluidTank;
 
-public class AutoLubricatorTileEntity extends IPTileEntityBase implements ITickableTileEntity, IPlayerInteraction, IBlockOverlayText, ITileDrop{
+import java.util.Arrays;
+import java.util.List;
+
+public class AutoLubricatorTileEntity extends IPTileEntityBase implements IPlayerInteraction, IBlockOverlayText, IEBlockInterfaces.IBlockEntityDrop {
 	public boolean isSlave;
 	public boolean isActive;
 	public boolean predictablyDraining = false;
 	public Direction facing;
 	public FluidTank tank = new FluidTank(8000, fluid -> (fluid != null && LubricantHandler.isValidLube(fluid.getFluid())));
 	
-	public AutoLubricatorTileEntity(){
-		super(IPTileTypes.AUTOLUBE.get());
+	public AutoLubricatorTileEntity(BlockPos pos, BlockState state){
+		super(IPTileTypes.AUTOLUBE.get(), pos, state);
 	}
 	
 	@Override
-	protected void readCustom(BlockState state, CompoundNBT compound){
+	protected void readCustom(CompoundTag compound){
 		this.isSlave = compound.getBoolean("slave");
 		this.isActive = compound.getBoolean("active");
 		this.predictablyDraining = compound.getBoolean("predictablyDraining");
 		
 		Direction facing = Direction.byName(compound.getString("facing"));
-		if(facing.getHorizontalIndex() == -1)
+		if(facing.get2DDataValue() == -1)
 			facing = Direction.NORTH;
 		this.facing = facing;
 		
@@ -68,24 +66,24 @@ public class AutoLubricatorTileEntity extends IPTileEntityBase implements ITicka
 	}
 	
 	@Override
-	protected void writeCustom(CompoundNBT compound){
+	protected void writeCustom(CompoundTag compound){
 		compound.putBoolean("slave", this.isSlave);
 		compound.putBoolean("active", this.isActive);
 		compound.putBoolean("predictablyDraining", this.predictablyDraining);
-		compound.putString("facing", this.facing.getName2());
+		compound.putString("facing", this.facing.getName());
 		compound.putInt("count", this.count);
 		
-		CompoundNBT tank = this.tank.writeToNBT(new CompoundNBT());
+		CompoundTag tank = this.tank.writeToNBT(new CompoundTag());
 		compound.put("tank", tank);
 	}
 	
-	public void readTank(CompoundNBT nbt){
+	public void readTank(CompoundTag nbt){
 		this.tank.readFromNBT(nbt.getCompound("tank"));
 	}
 	
-	public void writeTank(CompoundNBT nbt, boolean toItem){
+	public void writeTank(CompoundTag nbt, boolean toItem){
 		boolean write = this.tank.getFluidAmount() > 0;
-		CompoundNBT tankTag = this.tank.writeToNBT(new CompoundNBT());
+		CompoundTag tankTag = this.tank.writeToNBT(new CompoundTag());
 		if(!toItem || write)
 			nbt.put("tank", tankTag);
 	}
@@ -97,19 +95,19 @@ public class AutoLubricatorTileEntity extends IPTileEntityBase implements ITicka
 	}
 	
 	@Override
-	public List<ItemStack> getTileDrops(LootContext context){
-		BlockState state = context.get(LootParameters.BLOCK_STATE);
-		if(state.get(AutoLubricatorBlock.SLAVE)){
+	public List<ItemStack> getBlockEntityDrop(LootContext context){
+		BlockState state = context.getParam(LootContextParams.BLOCK_STATE);
+		if(state.getValue(AutoLubricatorBlock.SLAVE)){
 			return Arrays.asList(ItemStack.EMPTY);
 		}
 		
 		ItemStack stack = new ItemStack(state.getBlock());
 		
-		TileEntity te = context.get(LootParameters.BLOCK_ENTITY);
+		BlockEntity te = context.getParam(LootContextParams.BLOCK_ENTITY);
 		if(te instanceof AutoLubricatorTileEntity){
 			AutoLubricatorTileEntity lube = (AutoLubricatorTileEntity) te;
 			
-			CompoundNBT tag = new CompoundNBT();
+			CompoundTag tag = new CompoundTag();
 			lube.writeTank(tag, true);
 			if(!tag.isEmpty()){
 				stack.setTag(tag);
@@ -126,7 +124,7 @@ public class AutoLubricatorTileEntity extends IPTileEntityBase implements ITicka
 		if(cap == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY && this.isSlave && (side == null || side == Direction.UP)){
 			if(this.outputHandler == null){
 				this.outputHandler = LazyOptional.of(() -> {
-					TileEntity te = this.world.getTileEntity(getPos().offset(Direction.DOWN));
+					BlockEntity te = this.level.getBlockEntity(getBlockPos().relative(Direction.DOWN));
 					if(te != null && te instanceof AutoLubricatorTileEntity){
 						return ((AutoLubricatorTileEntity) te).tank;
 					}
@@ -147,12 +145,12 @@ public class AutoLubricatorTileEntity extends IPTileEntityBase implements ITicka
 	}
 	
 	@Override
-	public void markDirty(){
-		super.markDirty();
+	public void setChanged(){
+		super.setChanged();
 		
-		BlockState state = world.getBlockState(pos);
-		world.notifyBlockUpdate(pos, state, state, 3);
-		world.notifyNeighborsOfStateChange(pos, state.getBlock());
+		BlockState state = level.getBlockState(getBlockPos());
+		level.sendBlockUpdated(getBlockPos(), state, state, 3);
+		level.updateNeighborsAt(getBlockPos(), state.getBlock());
 	}
 	
 	@Override
@@ -172,41 +170,41 @@ public class AutoLubricatorTileEntity extends IPTileEntityBase implements ITicka
 	
 	@OnlyIn(Dist.CLIENT)
 	@Override
-	public AxisAlignedBB getRenderBoundingBox(){
-		BlockPos pos = getPos();
+	public AABB getRenderBoundingBox(){
+		BlockPos pos = getBlockPos();
 		int size = 3;
-		return new AxisAlignedBB(pos.getX() - size, pos.getY() - size, pos.getZ() - size, pos.getX() + size, pos.getY() + size, pos.getZ() + size);
+		return new AABB(pos.getX() - size, pos.getY() - size, pos.getZ() - size, pos.getX() + size, pos.getY() + size, pos.getZ() + size);
 	}
 	
 	@Override
-	public ITextComponent[] getOverlayText(PlayerEntity player, RayTraceResult mop, boolean hammer){
-		if(Utils.isFluidRelatedItemStack(player.getHeldItem(Hand.MAIN_HAND))){
-			TileEntity master = this.world.getTileEntity(getPos().add(0, this.isSlave ? -1 : 0, 0));
+	public Component[] getOverlayText(Player player, HitResult mop, boolean hammer){
+		if(Utils.isFluidRelatedItemStack(player.getItemInHand(InteractionHand.MAIN_HAND))){
+			BlockEntity master = this.level.getBlockEntity(getBlockPos().offset(0, this.isSlave ? -1 : 0, 0));
 			if(master != null && master instanceof AutoLubricatorTileEntity){
 				AutoLubricatorTileEntity lube = (AutoLubricatorTileEntity) master;
-				ITextComponent s = null;
+				MutableComponent s = null;
 				if(!lube.tank.isEmpty()){
-					s = ((IFormattableTextComponent) lube.tank.getFluid().getDisplayName()).appendString(": " + lube.tank.getFluidAmount() + "mB");
+					s = ((MutableComponent) lube.tank.getFluid().getDisplayName()).append(": " + lube.tank.getFluidAmount() + "mB");
 				}else{
-					s = new TranslationTextComponent(Lib.GUI + "empty");
+					s = new TranslatableComponent(Lib.GUI + "empty");
 				}
-				return new ITextComponent[]{s};
+				return new Component[]{s};
 			}
 		}
 		return null;
 	}
 	
 	@Override
-	public boolean useNixieFont(PlayerEntity player, RayTraceResult mop){
+	public boolean useNixieFont(Player player, HitResult mop){
 		return false;
 	}
 	
 	@Override
-	public boolean interact(Direction side, PlayerEntity player, Hand hand, ItemStack heldItem, float hitX, float hitY, float hitZ){
-		TileEntity master = this.isSlave ? this.world.getTileEntity(getPos().add(0, -1, 0)) : this;
+	public boolean interact(Direction side, Player player, InteractionHand hand, ItemStack heldItem, float hitX, float hitY, float hitZ){
+		BlockEntity master = this.isSlave ? this.level.getBlockEntity(getBlockPos().offset(0, -1, 0)) : this;
 		if(master != null && master instanceof AutoLubricatorTileEntity){
-			if(!getWorld().isRemote && FluidUtil.interactWithFluidHandler(player, hand, ((AutoLubricatorTileEntity) master).tank)){
-				markDirty();
+			if(getLevel().isClientSide && FluidUtil.interactWithFluidHandler(player, hand, ((AutoLubricatorTileEntity) master).tank)){
+				setChanged();
 			}
 			return true;
 		}
@@ -234,31 +232,31 @@ public class AutoLubricatorTileEntity extends IPTileEntityBase implements ITicka
 		
 		if(isMaster()){
 			if((this.tank.getFluid() != null && this.tank.getFluid() != FluidStack.EMPTY) && this.tank.getFluidAmount() >= LubricantHandler.getLubeAmount(this.tank.getFluid().getFluid()) && LubricantHandler.isValidLube(this.tank.getFluid().getFluid())){
-				BlockPos target = this.pos.offset(this.facing);
-				TileEntity te = this.world.getTileEntity(target);
+				BlockPos target = this.getBlockPos().offset(this.facing.getNormal());
+				BlockEntity te = this.level.getBlockEntity(target);
 				
-				ILubricationHandler<TileEntity> handler = LubricatedHandler.getHandlerForTile(te);
+				LubricatedHandler.ILubricationHandler<BlockEntity> handler = LubricatedHandler.getHandlerForTile(te);
 				if(handler != null){
-					TileEntity master = handler.isPlacedCorrectly(this.world, this, this.facing);
-					if(master != null && handler.isMachineEnabled(this.world, master)){
+					BlockEntity master = handler.isPlacedCorrectly(this.level, this, this.facing);
+					if(master != null && handler.isMachineEnabled(this.level, master)){
 						this.count++;
-						handler.lubricate(this.world, this.count, master);
+						handler.lubricate(this.level, this.count, master);
 						
-						if(!this.world.isRemote && this.count % 4 == 0){
+						if(this.level.isClientSide && this.count % 4 == 0){
 							this.tank.drain(LubricantHandler.getLubeAmount(this.tank.getFluid().getFluid()), FluidAction.EXECUTE);
-							markDirty();
+							setChanged();
 						}
 						
 						this.countClient++;
 						if(this.countClient % 50 == 0){
-							this.countClient = this.world.rand.nextInt(40);
-							handler.spawnLubricantParticles(this.world, this, this.facing, master);
+							this.countClient = this.level.random.nextInt(40);
+							handler.spawnLubricantParticles(this.level, this, this.facing, master);
 						}
 					}
 				}
 			}
 			
-			if(!this.world.isRemote && this.lastTank != this.tank.getFluidAmount()){
+			if(this.level.isClientSide && this.lastTank != this.tank.getFluidAmount()){
 				if(this.predictablyDraining && !this.tank.isEmpty() && this.lastTank - this.tank.getFluidAmount() == LubricantHandler.getLubeAmount(this.tank.getFluid().getFluid())){
 					this.lastTank = this.tank.getFluidAmount();
 				}
@@ -267,7 +265,7 @@ public class AutoLubricatorTileEntity extends IPTileEntityBase implements ITicka
 					this.predictablyDraining = !this.tank.isEmpty() && this.lastTank - this.tank.getFluidAmount() == LubricantHandler.getLubeAmount(this.tank.getFluid().getFluid());
 					this.lastTankUpdate = this.tank.getFluidAmount();
 				}
-				markDirty();
+				setChanged();
 			}
 		}
 	}

@@ -1,50 +1,49 @@
 package flaxbeard.immersivepetroleum.common.crafting.serializers;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import blusunrize.immersiveengineering.api.crafting.IERecipeSerializer;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
-import blusunrize.immersiveengineering.api.crafting.IERecipeSerializer;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.api.crafting.pumpjack.PumpjackHandler.ReservoirType;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.GsonHelper;
+import net.minecraft.world.item.ItemStack;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class ReservoirTypeSerializer extends IERecipeSerializer<ReservoirType>{
 	@Override
 	public ReservoirType readFromJson(ResourceLocation recipeId, JsonObject json){
-		String name = JSONUtils.getString(json, "name");
-		ResourceLocation fluid = new ResourceLocation(JSONUtils.getString(json, "fluid"));
-		int min = JSONUtils.getInt(json, "fluidminimum");
-		int max = JSONUtils.getInt(json, "fluidcapacity");
-		int trace = JSONUtils.getInt(json, "fluidtrace");
-		int weight = JSONUtils.getInt(json, "weight");
+		String name = GsonHelper.getAsString(json, "name");
+		ResourceLocation fluid = new ResourceLocation(GsonHelper.getAsString(json, "fluid"));
+		int min = GsonHelper.getAsInt(json, "fluidminimum");
+		int max = GsonHelper.getAsInt(json, "fluidcapacity");
+		int trace = GsonHelper.getAsInt(json, "fluidtrace");
+		int weight = GsonHelper.getAsInt(json, "weight");
 		
 		ReservoirType type = new ReservoirType(name, recipeId, fluid, min, max, trace, weight);
 		
 		ImmersivePetroleum.log.debug(String.format("Loaded reservoir %s as %s, with %smB to %smB of %s and %smB trace, with %s of weight.",
 				recipeId, name, min, max, fluid, trace, weight));
 		
-		if(JSONUtils.hasField(json, "dimension")){
-			JsonObject dimension = JSONUtils.getJsonObject(json, "dimension");
+		if(GsonHelper.isValidNode(json, "dimension")){
+			JsonObject dimension = GsonHelper.getAsJsonObject(json, "dimension");
 			
 			List<ResourceLocation> whitelist = new ArrayList<>();
 			List<ResourceLocation> blacklist = new ArrayList<>();
 			
-			if(JSONUtils.hasField(dimension, "whitelist")){
-				JsonArray array = JSONUtils.getJsonArray(dimension, "whitelist");
+			if(GsonHelper.isValidNode(dimension, "whitelist")){
+				JsonArray array = GsonHelper.getAsJsonArray(dimension, "whitelist");
 				for(JsonElement obj:array){
 					whitelist.add(new ResourceLocation(obj.getAsString()));
 				}
 			}
 			
-			if(JSONUtils.hasField(dimension, "blacklist")){
-				JsonArray array = JSONUtils.getJsonArray(dimension, "blacklist");
+			if(GsonHelper.isValidNode(dimension, "blacklist")){
+				JsonArray array = GsonHelper.getAsJsonArray(dimension, "blacklist");
 				for(JsonElement obj:array){
 					blacklist.add(new ResourceLocation(obj.getAsString()));
 				}
@@ -61,21 +60,21 @@ public class ReservoirTypeSerializer extends IERecipeSerializer<ReservoirType>{
 			}
 		}
 		
-		if(JSONUtils.hasField(json, "biome")){
-			JsonObject biome = JSONUtils.getJsonObject(json, "biome");
+		if(GsonHelper.isValidNode(json, "biome")){
+			JsonObject biome = GsonHelper.getAsJsonObject(json, "biome");
 			
 			List<ResourceLocation> whitelist = new ArrayList<>();
 			List<ResourceLocation> blacklist = new ArrayList<>();
 			
-			if(JSONUtils.hasField(biome, "whitelist")){
-				JsonArray array = JSONUtils.getJsonArray(biome, "whitelist");
+			if(GsonHelper.isValidNode(biome, "whitelist")){
+				JsonArray array = GsonHelper.getAsJsonArray(biome, "whitelist");
 				for(JsonElement obj:array){
 					whitelist.add(new ResourceLocation(obj.getAsString()));
 				}
 			}
 			
-			if(JSONUtils.hasField(biome, "blacklist")){
-				JsonArray array = JSONUtils.getJsonArray(biome, "blacklist");
+			if(GsonHelper.isValidNode(biome, "blacklist")){
+				JsonArray array = GsonHelper.getAsJsonArray(biome, "blacklist");
 				for(JsonElement obj:array){
 					blacklist.add(new ResourceLocation(obj.getAsString()));
 				}
@@ -96,13 +95,13 @@ public class ReservoirTypeSerializer extends IERecipeSerializer<ReservoirType>{
 	}
 	
 	@Override
-	public ReservoirType read(ResourceLocation recipeId, PacketBuffer buffer){
-		return new ReservoirType(buffer.readCompoundTag()); // Very convenient having the NBT stuff already.
+	public ReservoirType fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer){
+		return new ReservoirType(buffer.readNbt()); // Very convenient having the NBT stuff already.
 	}
 	
 	@Override
-	public void write(PacketBuffer buffer, ReservoirType recipe){
-		buffer.writeCompoundTag(recipe.writeToNBT());
+	public void toNetwork(FriendlyByteBuf buffer, ReservoirType recipe){
+		buffer.writeNbt(recipe.writeToNBT());
 	}
 	
 	@Override

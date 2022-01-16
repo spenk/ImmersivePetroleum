@@ -1,14 +1,10 @@
 package flaxbeard.immersivepetroleum.client.render.debugging;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import com.mojang.blaze3d.matrix.MatrixStack;
-
 import blusunrize.immersiveengineering.client.utils.GuiHelper;
-import blusunrize.immersiveengineering.common.blocks.generic.MultiblockPartTileEntity;
-import blusunrize.immersiveengineering.common.blocks.generic.PoweredMultiblockTileEntity;
+import blusunrize.immersiveengineering.common.blocks.generic.MultiblockPartBlockEntity;
+import blusunrize.immersiveengineering.common.blocks.generic.PoweredMultiblockBlockEntity;
 import blusunrize.immersiveengineering.common.util.inventory.MultiFluidTank;
+import com.mojang.blaze3d.vertex.PoseStack;
 import flaxbeard.immersivepetroleum.api.crafting.LubricatedHandler;
 import flaxbeard.immersivepetroleum.api.crafting.LubricatedHandler.LubricatedTileInfo;
 import flaxbeard.immersivepetroleum.common.IPContent;
@@ -17,39 +13,39 @@ import flaxbeard.immersivepetroleum.common.blocks.tileentities.CokerUnitTileEnti
 import flaxbeard.immersivepetroleum.common.blocks.tileentities.DistillationTowerTileEntity;
 import flaxbeard.immersivepetroleum.common.blocks.tileentities.HydrotreaterTileEntity;
 import flaxbeard.immersivepetroleum.common.entity.MotorboatEntity;
-import net.minecraft.block.Block;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.IRenderTypeBuffer;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.Hand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.BlockRayTraceResult;
-import net.minecraft.util.math.EntityRayTraceResult;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.text.IFormattableTextComponent;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.TranslationTextComponent;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidTank;
 import net.minecraftforge.fluids.capability.templates.FluidTank;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class DebugRenderHandler{
 	public DebugRenderHandler(){
 	}
 	
-	private boolean isHoldingDebugItem(PlayerEntity player){
-		ItemStack main = player.getHeldItem(Hand.MAIN_HAND);
-		ItemStack off = player.getHeldItem(Hand.OFF_HAND);
+	private boolean isHoldingDebugItem(Player player){
+		ItemStack main = player.getItemInHand(InteractionHand.MAIN_HAND);
+		ItemStack off = player.getItemInHand(InteractionHand.OFF_HAND);
 		
 		return (main != ItemStack.EMPTY && main.getItem() == IPContent.debugItem) || (off != ItemStack.EMPTY && off.getItem() == IPContent.debugItem);
 	}
@@ -59,22 +55,22 @@ public class DebugRenderHandler{
 		Minecraft mc = Minecraft.getInstance();
 		
 		if(mc.player != null && event.getType() == RenderGameOverlayEvent.ElementType.TEXT){
-			PlayerEntity player = mc.player;
+			Player player = mc.player;
 			
 			if(isHoldingDebugItem(player)){
-				RayTraceResult rt = mc.objectMouseOver;
+				HitResult rt = mc.hitResult;
 				if(rt != null){
 					switch(rt.getType()){
 						case BLOCK:{
-							BlockRayTraceResult result = (BlockRayTraceResult) rt;
-							World world = player.world;
+							BlockHitResult result = (BlockHitResult) rt;
+							Level world = player.level;
 							
-							List<ITextComponent> debugOut = new ArrayList<>();
+							List<MutableComponent> debugOut = new ArrayList<>();
 							
-							TileEntity te = world.getTileEntity(result.getPos());
-							boolean isMBPart = te instanceof MultiblockPartTileEntity;
+							BlockEntity te = world.getBlockEntity(result.getBlockPos());
+							boolean isMBPart = te instanceof MultiblockPartBlockEntity;
 							if(isMBPart){
-								MultiblockPartTileEntity<?> multiblock = (MultiblockPartTileEntity<?>) te;
+								MultiblockPartBlockEntity<?> multiblock = (MultiblockPartBlockEntity<?>) te;
 								
 								if(!multiblock.offsetToMaster.equals(BlockPos.ZERO)){
 									multiblock = multiblock.master();
@@ -93,39 +89,39 @@ public class DebugRenderHandler{
 							
 							if(!debugOut.isEmpty() || isMBPart){
 								if(isMBPart){
-									MultiblockPartTileEntity<?> generic = (MultiblockPartTileEntity<?>) te;
+									MultiblockPartBlockEntity<?> generic = (MultiblockPartBlockEntity<?>) te;
 									BlockPos tPos = generic.posInMultiblock;
 									
 									if(!generic.offsetToMaster.equals(BlockPos.ZERO)){
 										generic = generic.master();
 									}
 									
-									BlockPos hit = result.getPos();
+									BlockPos hit = result.getBlockPos();
 									Block block = generic.getBlockState().getBlock();
 									
 									debugOut.add(0, toText("World XYZ: " + hit.getX() + ", " + hit.getY() + ", " + hit.getZ()));
 									debugOut.add(1, toText("Template XYZ: " + tPos.getX() + ", " + tPos.getY() + ", " + tPos.getZ()));
 									
-									IFormattableTextComponent name = toTranslation(block.getTranslationKey()).mergeStyle(TextFormatting.GOLD);
+									TextComponent name = toTranslation(block.getName()).mergeStyle(ChatFormatting.GOLD);
 									
 									try{
-										name.appendSibling(toText(generic.isRSDisabled() ? " (Redstoned)" : "").mergeStyle(TextFormatting.RED));
+										name.append(toText(generic.isRSDisabled() ? " (Redstoned)" : "").withStyle(ChatFormatting.RED));
 									}catch(UnsupportedOperationException e){
 										// Don't care, skip if this is thrown
 									}
 									
-									if(generic instanceof PoweredMultiblockTileEntity<?, ?>){
-										PoweredMultiblockTileEntity<?, ?> poweredGeneric = (PoweredMultiblockTileEntity<?, ?>) generic;
+									if(generic instanceof PoweredMultiblockBlockEntity<?,?>){
+										PoweredMultiblockBlockEntity<?, ?> poweredGeneric = (PoweredMultiblockBlockEntity<?, ?>) generic;
 										
-										name.appendSibling(toText(poweredGeneric.shouldRenderAsActive() ? " (Active)" : "").mergeStyle(TextFormatting.GREEN));
+										name.append(toText(poweredGeneric.shouldRenderAsActive() ? " (Active)" : "").withStyle(ChatFormatting.GREEN));
 										
 										debugOut.add(2, toText(poweredGeneric.energyStorage.getEnergyStored() + "/" + poweredGeneric.energyStorage.getMaxEnergyStored() + "RF"));
 									}
 									
 									synchronized(LubricatedHandler.lubricatedTiles){
 										for(LubricatedTileInfo info:LubricatedHandler.lubricatedTiles){
-											if(info.pos.equals(generic.getPos())){
-												name.appendSibling(toText(" (Lubricated " + info.ticks + ")").mergeStyle(TextFormatting.YELLOW));
+											if(info.pos.equals(generic.getBlockPos())){
+												name.append(toText(" (Lubricated " + info.ticks + ")").withStyle(ChatFormatting.YELLOW));
 											}
 										}
 									}
@@ -138,20 +134,20 @@ public class DebugRenderHandler{
 							break;
 						}
 						case ENTITY:{
-							EntityRayTraceResult result = (EntityRayTraceResult) rt;
+							EntityHitResult result = (EntityHitResult) rt;
 							
 							if(result.getEntity() instanceof MotorboatEntity){
 								MotorboatEntity boat = (MotorboatEntity) result.getEntity();
 								
-								List<ITextComponent> debugOut = new ArrayList<>();
+								List<MutableComponent> debugOut = new ArrayList<>();
 								
-								debugOut.add(toText("").appendSibling(boat.getDisplayName()).mergeStyle(TextFormatting.GOLD));
+								debugOut.add(toText("").append(boat.getDisplayName()).withStyle(ChatFormatting.GOLD));
 								
 								FluidStack fluid = boat.getContainedFluid();
 								if(fluid == FluidStack.EMPTY){
 									debugOut.add(toText("Tank: Empty"));
 								}else{
-									debugOut.add(toText("Tank: " + fluid.getAmount() + "/" + boat.getMaxFuel() + "mB of ").appendSibling(fluid.getDisplayName()));
+									debugOut.add(toText("Tank: " + fluid.getAmount() + "/" + boat.getMaxFuel() + "mB of ").append(fluid.getDisplayName()));
 								}
 								
 								NonNullList<ItemStack> upgrades = boat.getUpgrades();
@@ -160,7 +156,7 @@ public class DebugRenderHandler{
 									if(upgrade == null || upgrade == ItemStack.EMPTY){
 										debugOut.add(toText("Upgrade " + (++i) + ": Empty"));
 									}else{
-										debugOut.add(toText("Upgrade " + (++i) + ": ").appendSibling(upgrade.getDisplayName()));
+										debugOut.add(toText("Upgrade " + (++i) + ": ").append(upgrade.getDisplayName()));
 									}
 								}
 								
@@ -176,17 +172,17 @@ public class DebugRenderHandler{
 		}
 	}
 	
-	private static void renderOverlay(MatrixStack matrix, List<ITextComponent> debugOut){
+	private static void renderOverlay(PoseStack matrix, List<MutableComponent> debugOut){
 		Minecraft mc = Minecraft.getInstance();
 		
-		matrix.push();
+		matrix.pushPose();
 		{
 			IRenderTypeBuffer.Impl buffer = IRenderTypeBuffer.getImpl(Tessellator.getInstance().getBuffer());
 			for(int i = 0;i < debugOut.size();i++){
 				int w = mc.fontRenderer.getStringWidth(debugOut.get(i).getString());
 				int yOff = i * (mc.fontRenderer.FONT_HEIGHT + 2);
 				
-				matrix.push();
+				matrix.pushPose();
 				{
 					matrix.translate(0, 0, 1);
 					GuiHelper.drawColouredRect(1, 1 + yOff, w + 1, 10, 0xAF_000000, buffer, matrix);
@@ -194,15 +190,15 @@ public class DebugRenderHandler{
 					// Draw string without shadow
 					mc.fontRenderer.drawText(matrix, debugOut.get(i), 2, 2 + yOff, -1);
 				}
-				matrix.pop();
+				matrix.popPose();
 			}
 		}
-		matrix.pop();
+		matrix.popPose();
 	}
 	
-	private static void distillationtower(List<ITextComponent> text, DistillationTowerTileEntity tower){
+	private static void distillationtower(List<MutableComponent> text, DistillationTowerTileEntity tower){
 		for(int i = 0;i < tower.tanks.length;i++){
-			text.add(toText("Tank " + (i + 1)).mergeStyle(TextFormatting.UNDERLINE));
+			text.add(toText("Tank " + (i + 1)).withStyle(ChatFormatting.UNDERLINE));
 			
 			MultiFluidTank tank = tower.tanks[i];
 			if(tank.fluids.size() > 0){
@@ -216,7 +212,7 @@ public class DebugRenderHandler{
 		}
 	}
 	
-	private static void cokerunit(List<ITextComponent> text, CokerUnitTileEntity coker){
+	private static void cokerunit(List<MutableComponent> text, CokerUnitTileEntity coker){
 		{
 			FluidTank tank = coker.bufferTanks[CokerUnitTileEntity.TANK_INPUT];
 			FluidStack fs = tank.getFluid();
@@ -236,16 +232,16 @@ public class DebugRenderHandler{
 			
 			float completed = chamber.getTotalAmount() > 0 ? 100 * (chamber.getOutputAmount() / (float) chamber.getTotalAmount()) : 0;
 			
-			text.add(toText("Chamber " + i).mergeStyle(TextFormatting.UNDERLINE, TextFormatting.AQUA));
+			text.add(toText("Chamber " + i).withStyle(ChatFormatting.UNDERLINE, ChatFormatting.AQUA));
 			text.add(toText("State: " + chamber.getState().toString()));
 			text.add(toText("  Tank: " + (fs.getAmount() + "/" + tank.getCapacity() + "mB " + (fs.isEmpty() ? "" : "(" + fs.getDisplayName().getString() + ")"))));
-			text.add(toText("  Content: " + chamber.getTotalAmount() + " / " + chamber.getCapacity()).appendString(" (" + chamber.getInputItem().getDisplayName().getString() + ")"));
+			text.add(toText("  Content: " + chamber.getTotalAmount() + " / " + chamber.getCapacity()).append(" (" + chamber.getInputItem().getDisplayName().getString() + ")"));
 			text.add(toText("  Out: " + chamber.getOutputItem().getDisplayName().getString()));
-			text.add(toText("  " + MathHelper.floor(completed) + "% Completed. (Raw: " + completed + ")"));
+			text.add(toText("  " + Mth.floor(completed) + "% Completed. (Raw: " + completed + ")"));
 		}
 	}
 	
-	private static void hydrotreater(List<ITextComponent> text, HydrotreaterTileEntity treater){
+	private static void hydrotreater(List<MutableComponent> text, HydrotreaterTileEntity treater){
 		IFluidTank[] tanks = treater.getInternalTanks();
 		if(tanks != null && tanks.length > 0){
 			for(int i = 0;i < tanks.length;i++){
@@ -255,11 +251,11 @@ public class DebugRenderHandler{
 		}
 	}
 	
-	static IFormattableTextComponent toText(String string){
-		return new StringTextComponent(string);
+	static MutableComponent toText(String string){
+		return new TextComponent(string);
 	}
 	
-	static IFormattableTextComponent toTranslation(String translationKey, Object... args){
-		return new TranslationTextComponent(translationKey, args);
+	static TranslatableComponent toTranslation(String translationKey, Object... args){
+		return new TranslatableComponent(translationKey, args);
 	}
 }

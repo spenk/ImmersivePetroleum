@@ -1,35 +1,31 @@
 package flaxbeard.immersivepetroleum.common.items;
 
-import java.util.List;
-
 import blusunrize.immersiveengineering.api.Lib;
 import blusunrize.immersiveengineering.common.util.ItemNBTHelper;
 import flaxbeard.immersivepetroleum.api.crafting.LubricantHandler;
 import flaxbeard.immersivepetroleum.api.crafting.LubricatedHandler;
-import net.minecraft.client.resources.I18n;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.passive.IronGolemEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemUseContext;
-import net.minecraft.item.Rarity;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.potion.EffectInstance;
-import net.minecraft.potion.Effects;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ActionResultType;
-import net.minecraft.util.Hand;
-import net.minecraft.util.SoundEvents;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.IFormattableTextComponent;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.world.World;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.IronGolem;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.fluids.FluidAttributes;
 import net.minecraftforge.fluids.FluidUtil;
@@ -38,13 +34,15 @@ import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler.FluidAction;
 import net.minecraftforge.fluids.capability.templates.FluidHandlerItemStack;
 
-public class OilCanItem extends IPItemBase{
+import java.util.List;
+
+public class OilCanItem extends IPItemBase {
 	public OilCanItem(String name){
-		super(name, new Item.Properties().maxStackSize(1));
+		super(name, new Item.Properties().stacksTo(1));
 	}
 	
 	@Override
-	public ICapabilityProvider initCapabilities(ItemStack stack, CompoundNBT nbt){
+	public ICapabilityProvider initCapabilities(ItemStack stack, CompoundTag nbt){
 		if(!stack.isEmpty()){
 			return new FluidHandlerItemStack(stack, 8000);
 		}
@@ -53,78 +51,77 @@ public class OilCanItem extends IPItemBase{
 	}
 	
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void addInformation(ItemStack stack, World worldIn, List<ITextComponent> tooltip, ITooltipFlag flagIn){
+	public void appendHoverText(ItemStack stack, Level worldIn, List<Component> tooltip, TooltipFlag flagIn){
 		if(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY == null)
 			return;
 		
 		FluidUtil.getFluidContained(stack).ifPresent(fluid -> {
 			if(fluid != null && fluid.getAmount() > 0){
 				FluidAttributes att = fluid.getFluid().getAttributes();
-				TextFormatting rarity = att.getRarity() == Rarity.COMMON ? TextFormatting.GRAY : att.getRarity().color;
+				ChatFormatting rarity = att.getRarity() == Rarity.COMMON ? ChatFormatting.GRAY : att.getRarity().color;
 				
-				ITextComponent out = ((IFormattableTextComponent) fluid.getDisplayName()).mergeStyle(rarity)
-						.appendSibling(new StringTextComponent(": " + fluid.getAmount() + "/8000mB").mergeStyle(TextFormatting.GRAY));
+				MutableComponent out = ((MutableComponent) fluid.getDisplayName()).withStyle(rarity)
+						.append(new TextComponent(": " + fluid.getAmount() + "/8000mB").withStyle(ChatFormatting.GRAY));
 				tooltip.add(out);
 			}else{
-				tooltip.add(new StringTextComponent(I18n.format(Lib.DESC_FLAVOUR + "drill.empty")));
+				tooltip.add(new TextComponent(I18n.get(Lib.DESC_FLAVOUR + "drill.empty")));
 			}
 		});
 	}
 	
 	@Override
-	public ActionResultType onItemUse(ItemUseContext context){
-		ItemStack stack = context.getItem();
-		PlayerEntity player = context.getPlayer();
-		Hand hand = context.getHand();
-		World world = context.getWorld();
-		BlockPos pos = context.getPos();
+	public InteractionResult useOn(UseOnContext context){
+		ItemStack stack = context.getItemInHand();
+		Player player = context.getPlayer();
+		InteractionHand hand = context.getHand();
+		Level world = context.getLevel();
+		BlockPos pos = context.getClickedPos();
 		
-		if(!world.isRemote){
-			TileEntity tileEntity = world.getTileEntity(pos);
+		if(world.isClientSide){
+			BlockEntity tileEntity = world.getBlockEntity(pos);
 			if(tileEntity != null){
 				IFluidHandler cap = tileEntity.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY).orElse(null);
 				
 				if(cap != null && FluidUtil.interactWithFluidHandler(player, hand, cap)){
-					return ActionResultType.SUCCESS;
+					return InteractionResult.SUCCESS;
 				}else{
-					ActionResultType ret = FluidUtil.getFluidHandler(stack).map(handler -> {
+					InteractionResult ret = FluidUtil.getFluidHandler(stack).map(handler -> {
 						if(handler instanceof FluidHandlerItemStack){
 							FluidHandlerItemStack can = (FluidHandlerItemStack) handler;
 							
 							if(can.getFluid() != null && LubricantHandler.isValidLube(can.getFluid().getFluid())){
 								int amountNeeded = (LubricantHandler.getLubeAmount(can.getFluid().getFluid()) * 5 * 20);
-								if(can.getFluid().getAmount() >= amountNeeded && LubricatedHandler.lubricateTile(world.getTileEntity(pos), 20 * 30)){
-									player.playSound(SoundEvents.ITEM_BUCKET_EMPTY, 1f, 1f);
+								if(can.getFluid().getAmount() >= amountNeeded && LubricatedHandler.lubricateTile(world.getBlockEntity(pos), 20 * 30)){
+									player.playSound(SoundEvents.BUCKET_EMPTY, 1f, 1f);
 									if(!player.isCreative()){
 										can.drain(amountNeeded, FluidAction.EXECUTE);
 									}
-									return ActionResultType.SUCCESS;
+									return InteractionResult.SUCCESS;
 								}
 							}
 						}
 						
-						return ActionResultType.PASS;
-					}).orElse(ActionResultType.PASS);
+						return InteractionResult.PASS;
+					}).orElse(InteractionResult.PASS);
 					
 					return ret;
 				}
 			}
 		}
 		
-		return ActionResultType.PASS;
+		return InteractionResult.PASS;
 	}
 	
 	@Override
-	public boolean hitEntity(ItemStack stack, LivingEntity target, LivingEntity attacker){
-		this.itemInteractionForEntity(stack, (PlayerEntity) null, target, Hand.MAIN_HAND);
+	public boolean hurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker){
+		this.interactLivingEntity(stack, (Player) null, target, InteractionHand.MAIN_HAND);
 		return true;
 	}
 	
 	@Override
-	public ActionResultType itemInteractionForEntity(ItemStack stack, PlayerEntity player, LivingEntity target, Hand hand){
-		if(target instanceof IronGolemEntity){
-			IronGolemEntity golem = (IronGolemEntity) target;
+	public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity target, InteractionHand hand){
+		if(target instanceof IronGolem){
+			IronGolem golem = (IronGolem) target;
 			
 			FluidUtil.getFluidHandler(stack).ifPresent(con -> {
 				if(con instanceof FluidHandlerItemStack){
@@ -133,10 +130,10 @@ public class OilCanItem extends IPItemBase{
 					if(handler.getFluid() != null && LubricantHandler.isValidLube(handler.getFluid().getFluid())){
 						int amountNeeded = (LubricantHandler.getLubeAmount(handler.getFluid().getFluid()) * 5 * 20);
 						if(handler.getFluid().getAmount() >= amountNeeded){
-							player.playSound(SoundEvents.ITEM_BUCKET_EMPTY, 1f, 1f);
+							player.playSound(SoundEvents.BUCKET_EMPTY, 1f, 1f);
 							golem.setHealth(Math.max(golem.getHealth() + 2f, golem.getMaxHealth()));
-							golem.addPotionEffect(new EffectInstance(Effects.SPEED, 60 * 20, 1));
-							golem.addPotionEffect(new EffectInstance(Effects.STRENGTH, 60 * 20, 1));
+							golem.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 60 * 20, 1));
+							golem.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 60 * 20, 1));
 							if(!player.isCreative()){
 								handler.drain(amountNeeded, FluidAction.EXECUTE);
 							}
@@ -145,9 +142,9 @@ public class OilCanItem extends IPItemBase{
 				}
 			});
 			
-			return ActionResultType.SUCCESS;
+			return InteractionResult.SUCCESS;
 		}else
-			return ActionResultType.FAIL;
+			return InteractionResult.FAIL;
 	}
 	
 	@Override

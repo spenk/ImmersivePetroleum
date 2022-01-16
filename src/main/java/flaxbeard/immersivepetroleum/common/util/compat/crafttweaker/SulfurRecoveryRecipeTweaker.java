@@ -1,29 +1,28 @@
 package flaxbeard.immersivepetroleum.common.util.compat.crafttweaker;
 
+import blusunrize.immersiveengineering.api.crafting.FluidTagInput;
+import com.blamejared.crafttweaker.api.annotation.ZenRegister;
+import com.blamejared.crafttweaker.api.fluid.IFluidStack;
+import com.blamejared.crafttweaker.api.ingredient.IIngredient;
+import com.blamejared.crafttweaker.api.item.IItemStack;
+import com.blamejared.crafttweaker.api.item.MCItemStack;
+import com.blamejared.crafttweaker.api.recipe.manager.base.IRecipeManager;
+import com.blamejared.crafttweaker.api.tag.MCTag;
+import com.blamejared.crafttweaker.api.util.Many;
+import com.blamejared.crafttweaker_annotations.annotations.Document;
+import flaxbeard.immersivepetroleum.api.crafting.SulfurRecoveryRecipe;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.material.Fluid;
 import org.openzen.zencode.java.ZenCodeType.Method;
 import org.openzen.zencode.java.ZenCodeType.Name;
-
-import com.blamejared.crafttweaker.api.annotations.ZenRegister;
-import com.blamejared.crafttweaker.api.fluid.IFluidStack;
-import com.blamejared.crafttweaker.api.item.IIngredient;
-import com.blamejared.crafttweaker.api.item.IItemStack;
-import com.blamejared.crafttweaker.api.managers.IRecipeManager;
-import com.blamejared.crafttweaker.impl.item.MCItemStack;
-import com.blamejared.crafttweaker.impl.tag.MCTagWithAmount;
-import com.blamejared.crafttweaker_annotations.annotations.Document;
-
-import blusunrize.immersiveengineering.api.crafting.FluidTagInput;
-import flaxbeard.immersivepetroleum.api.crafting.SulfurRecoveryRecipe;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.item.crafting.IRecipeType;
-import net.minecraft.util.ResourceLocation;
 
 @ZenRegister
 @Document("mods/immersivepetroleum/SRU")
 @Name("mods.immersivepetroleum.Hydrotreater")
-public class SulfurRecoveryRecipeTweaker implements IRecipeManager{
+public class SulfurRecoveryRecipeTweaker implements IRecipeManager {
 	@Override
-	public IRecipeType<SulfurRecoveryRecipe> getRecipeType(){
+	public RecipeType<SulfurRecoveryRecipe> getRecipeType(){
 		return SulfurRecoveryRecipe.TYPE;
 	}
 	
@@ -46,20 +45,20 @@ public class SulfurRecoveryRecipeTweaker implements IRecipeManager{
 	}
 	
 	@Method
-	public void addRecipe(String name, IFluidStack output, IItemStack outputItem, double chance, MCTagWithAmount<Fluid> inputFluid, int energy){
+	public void addRecipe(String name, IFluidStack output, IItemStack outputItem, double chance, Many<MCTag<Fluid>> inputFluid, int energy){
 		ResourceLocation id = TweakerUtils.ctLoc("hydrotreater/" + name);
 		
-		FluidTagInput primary = new FluidTagInput(inputFluid.getTag().getId(), inputFluid.getAmount());
+		FluidTagInput primary = new FluidTagInput(inputFluid.getData().id(), inputFluid.getAmount());
 		
 		newRecipe(id, output, outputItem, chance, primary, null, energy);
 	}
 	
 	@Method
-	public void addRecipeWithSecondary(String name, IFluidStack output, IItemStack outputItem, double chance, MCTagWithAmount<Fluid> inputFluid, MCTagWithAmount<Fluid> inputFluidSecondary, int energy){
+	public void addRecipeWithSecondary(String name, IFluidStack output, IItemStack outputItem, double chance, Many<MCTag<Fluid>> inputFluid, Many<MCTag<Fluid>> inputFluidSecondary, int energy){
 		ResourceLocation id = TweakerUtils.ctLoc("hydrotreater/" + name);
 		
-		FluidTagInput primary = new FluidTagInput(inputFluid.getTag().getId(), inputFluid.getAmount());
-		FluidTagInput secondary = new FluidTagInput(inputFluidSecondary.getTag().getId(), inputFluidSecondary.getAmount());
+		FluidTagInput primary = new FluidTagInput(inputFluid.getData().id(), inputFluid.getAmount());
+		FluidTagInput secondary = new FluidTagInput(inputFluidSecondary.getData().id(), inputFluidSecondary.getAmount());
 		
 		newRecipe(id, output, outputItem, chance, primary, secondary, energy);
 	}

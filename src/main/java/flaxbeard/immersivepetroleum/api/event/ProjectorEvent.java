@@ -1,11 +1,11 @@
 package flaxbeard.immersivepetroleum.api.event;
 
 import blusunrize.immersiveengineering.api.multiblocks.MultiblockHandler.IMultiblock;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.util.Rotation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
 
@@ -15,11 +15,11 @@ import net.minecraftforge.eventbus.api.Event;
  * @author TwistedGate
  */
 @Cancelable
-public class ProjectorEvent extends Event{
+public class ProjectorEvent extends Event {
 	
 	@Cancelable
 	public static class PlaceBlock extends ProjectorEvent{
-		public PlaceBlock(IMultiblock multiblock, World templateWorld, BlockPos templatePos, World world, BlockPos worldPos, BlockState state, Rotation rotation){
+		public PlaceBlock(IMultiblock multiblock, Level templateWorld, BlockPos templatePos, Level world, BlockPos worldPos, BlockState state, Rotation rotation){
 			super(multiblock, templateWorld, templatePos, world, worldPos, state, rotation);
 		}
 		
@@ -28,20 +28,20 @@ public class ProjectorEvent extends Event{
 		}
 		
 		public void setState(Block block){
-			this.state = block.getDefaultState();
+			this.state = block.defaultBlockState();
 		}
 	}
 	
 	@Cancelable
-	public static class PlaceBlockPost extends ProjectorEvent{
-		public PlaceBlockPost(IMultiblock multiblock, World templateWorld, BlockPos templatePos, World world, BlockPos worldPos, BlockState state, Rotation rotation){
+	public static class PlaceBlockPost extends ProjectorEvent {
+		public PlaceBlockPost(IMultiblock multiblock, Level templateWorld, BlockPos templatePos, Level world, BlockPos worldPos, BlockState state, Rotation rotation){
 			super(multiblock, templateWorld, templatePos, world, worldPos, state, rotation);
 		}
 	}
 	
 	@Cancelable
 	public static class RenderBlock extends ProjectorEvent{
-		public RenderBlock(IMultiblock multiblock, World templateWorld, BlockPos templatePos, World world, BlockPos worldPos, BlockState state, Rotation rotation){
+		public RenderBlock(IMultiblock multiblock, Level templateWorld, BlockPos templatePos, Level world, BlockPos worldPos, BlockState state, Rotation rotation){
 			super(multiblock, templateWorld, templatePos, world, worldPos, state, rotation);
 		}
 		
@@ -50,19 +50,19 @@ public class ProjectorEvent extends Event{
 		}
 		
 		public void setState(Block block){
-			this.state = block.getDefaultState();
+			this.state = block.defaultBlockState();
 		}
 	}
 	
 	protected IMultiblock multiblock;
-	protected World realWorld;
-	protected World templateWorld;
+	protected Level realWorld;
+	protected Level templateWorld;
 	protected Rotation rotation;
 	protected BlockPos worldPos;
 	protected BlockPos templatePos;
 	protected BlockState state;
 	
-	public ProjectorEvent(IMultiblock multiblock, World templateWorld, BlockPos templatePos, World world, BlockPos worldPos, BlockState state, Rotation rotation){
+	public ProjectorEvent(IMultiblock multiblock, Level templateWorld, BlockPos templatePos, Level world, BlockPos worldPos, BlockState state, Rotation rotation){
 		super();
 		this.multiblock = multiblock;
 		this.realWorld = world;
@@ -77,11 +77,11 @@ public class ProjectorEvent extends Event{
 		return multiblock;
 	}
 	
-	public World getWorld(){
+	public Level getWorld(){
 		return this.realWorld;
 	}
 	
-	public World getTemplateWorld(){
+	public Level getTemplateWorld(){
 		return this.templateWorld;
 	}
 	

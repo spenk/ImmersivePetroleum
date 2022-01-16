@@ -1,5 +1,5 @@
 modLoader="javafml"
-loaderVersion="[36,)"
+loaderVersion="[39,)"
 issueTrackerURL="https://github.com/Flaxbeard/ImmersivePetroleum/issues"
 license="All rights reserved"
 
@@ -17,20 +17,20 @@ license="All rights reserved"
 [[dependencies.immersivepetroleum]]
 	modId="immersiveengineering"
 	mandatory=true
-	versionRange="[1.16.5-5.0.6-141,)"
+	versionRange="[1.18.1-7.1.1-pre.9)"
 	ordering="BEFORE"
 	side="BOTH"
 
 [[dependencies.immersivepetroleum]]
 	modId="forge"
 	mandatory=true
-	versionRange="[36.2.0,)"
+	versionRange="[39.0.64,)"
 	ordering="NONE"
 	side="BOTH"
 
 [[dependencies.immersivepetroleum]]
 	modId="minecraft"
 	mandatory=true
-	versionRange="[1.16.5]"
+	versionRange="[1.18.1]"
 	ordering="NONE"
 	side="BOTH"

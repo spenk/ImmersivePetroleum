@@ -1,24 +1,12 @@
 package flaxbeard.immersivepetroleum.common.items;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.BiPredicate;
-
-import javax.annotation.Nullable;
-
-import org.apache.commons.lang3.mutable.MutableBoolean;
-import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.commons.lang3.tuple.Pair;
-import org.lwjgl.glfw.GLFW;
-
-import com.mojang.blaze3d.matrix.MatrixStack;
-import com.mojang.blaze3d.vertex.IVertexBuilder;
-
 import blusunrize.immersiveengineering.api.multiblocks.MultiblockHandler.IMultiblock;
 import blusunrize.immersiveengineering.client.ClientUtils;
 import blusunrize.immersiveengineering.common.util.ItemNBTHelper;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Matrix4f;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.api.event.ProjectorEvent;
 import flaxbeard.immersivepetroleum.client.ClientProxy;
@@ -29,155 +17,166 @@ import flaxbeard.immersivepetroleum.common.IPContent.Items;
 import flaxbeard.immersivepetroleum.common.util.projector.MultiblockProjection;
 import flaxbeard.immersivepetroleum.common.util.projector.Settings;
 import flaxbeard.immersivepetroleum.common.util.projector.Settings.Mode;
-import net.minecraft.block.BlockRenderType;
-import net.minecraft.block.BlockState;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.BlockModelRenderer;
-import net.minecraft.client.renderer.BlockRendererDispatcher;
-import net.minecraft.client.renderer.IRenderTypeBuffer;
+import net.minecraft.client.color.block.BlockColors;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.color.BlockColors;
-import net.minecraft.client.renderer.model.IBakedModel;
-import net.minecraft.client.renderer.model.ItemCameraTransforms;
+import net.minecraft.client.renderer.block.BlockModelShaper;
+import net.minecraft.client.renderer.block.ModelBlockRenderer;
+import net.minecraft.client.renderer.block.model.ItemTransforms;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroup;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemUseContext;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.ActionResultType;
-import net.minecraft.util.Direction;
-import net.minecraft.util.Hand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.Rotation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.BlockPos.Mutable;
-import net.minecraft.util.math.BlockRayTraceResult;
-import net.minecraft.util.math.RayTraceResult.Type;
-import net.minecraft.util.math.vector.Matrix4f;
-import net.minecraft.util.math.vector.Vector3d;
-import net.minecraft.util.math.vector.Vector3i;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.TranslationTextComponent;
-import net.minecraft.world.World;
+import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.NonNullList;
+import net.minecraft.core.Vec3i;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Material;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.client.event.RenderWorldLastEvent;
+import net.minecraftforge.client.event.RenderLevelLastEvent;
 import net.minecraftforge.client.model.data.EmptyModelData;
 import net.minecraftforge.client.model.data.IModelData;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.util.Constants.NBT;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.TickEvent.Phase;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.NotNull;
+import org.lwjgl.glfw.GLFW;
 
-public class ProjectorItem extends IPItemBase{
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiPredicate;
+
+public class ProjectorItem extends IPItemBase {
 	public ProjectorItem(String name){
-		super(name, new Item.Properties().maxStackSize(1));
+		super(name, new Item.Properties().stacksTo(1));
 	}
 	
 	@Override
-	public ITextComponent getDisplayName(ItemStack stack){
-		String selfKey = getTranslationKey(stack);
+	public Component getName(@NotNull ItemStack stack){
+		String selfKey = getDescriptionId(stack);
 		if(stack.hasTag()){
 			Settings settings = getSettings(stack);
 			if(settings.getMultiblock() != null){
-				TranslationTextComponent name = new TranslationTextComponent("desc.immersiveengineering.info.multiblock.IE:" + getActualMBName(settings.getMultiblock()));
+				TranslatableComponent name = new TranslatableComponent("desc.immersiveengineering.info.multiblock.IE:" + getActualMBName(settings.getMultiblock()));
 				
-				return new TranslationTextComponent(selfKey + ".specific", name).mergeStyle(TextFormatting.GOLD);
+				return new TranslatableComponent(selfKey + ".specific", name).withStyle(ChatFormatting.GOLD);
 			}
 		}
-		return new TranslationTextComponent(selfKey).mergeStyle(TextFormatting.GOLD);
+		return new TranslatableComponent(selfKey).withStyle(ChatFormatting.GOLD);
 	}
-	
+
 	@OnlyIn(Dist.CLIENT)
-	public void addInformation(ItemStack stack, World worldIn, List<ITextComponent> tooltip, ITooltipFlag flagIn){
+	@Override
+	public void appendHoverText(ItemStack stack, Level worldIn, List<Component> tooltip, TooltipFlag flagIn){
 		Settings settings = getSettings(stack);
 		if(settings.getMultiblock() != null){
-			Vector3i size = settings.getMultiblock().getSize(worldIn);
+			Vec3i size = settings.getMultiblock().getSize(worldIn);
 			
 			String name = getActualMBName(settings.getMultiblock());
-			tooltip.add(new TranslationTextComponent("desc.immersivepetroleum.info.projector.build0"));
-			tooltip.add(new TranslationTextComponent("desc.immersivepetroleum.info.projector.build1", new TranslationTextComponent("desc.immersiveengineering.info.multiblock.IE:" + name)));
+			tooltip.add(new TranslatableComponent("desc.immersivepetroleum.info.projector.build0"));
+			tooltip.add(new TranslatableComponent("desc.immersivepetroleum.info.projector.build1", new TranslatableComponent("desc.immersiveengineering.info.multiblock.IE:" + name)));
 			
 			if(isPressing(GLFW.GLFW_KEY_LEFT_SHIFT) || isPressing(GLFW.GLFW_KEY_RIGHT_SHIFT)){
-				ITextComponent title = new TranslationTextComponent("desc.immersivepetroleum.info.projector.holdshift.text").mergeStyle(TextFormatting.DARK_AQUA);
+				Component title = new TranslatableComponent("desc.immersivepetroleum.info.projector.holdshift.text").withStyle(ChatFormatting.DARK_AQUA);
 				tooltip.add(title);
-				
-				ITextComponent mbSize = new TranslationTextComponent("desc.immersivepetroleum.info.projector.size", size.getX(), size.getY(), size.getZ()).mergeStyle(TextFormatting.DARK_GRAY);
+
+				Component mbSize = new TranslatableComponent("desc.immersivepetroleum.info.projector.size", size.getX(), size.getY(), size.getZ()).withStyle(ChatFormatting.DARK_GRAY);
 				tooltip.add(indent(mbSize));
 				
-				Direction dir = Direction.byHorizontalIndex(settings.getRotation().ordinal());
-				ITextComponent rotation = new TranslationTextComponent("desc.immersivepetroleum.info.projector.rotated." + dir).mergeStyle(TextFormatting.DARK_GRAY);
-				
-				ITextComponent flip;
+				Direction dir = Direction.from2DDataValue(settings.getRotation().ordinal());
+				Component rotation = new TranslatableComponent("desc.immersivepetroleum.info.projector.rotated." + dir).withStyle(ChatFormatting.DARK_GRAY);
+
+				Component flip;
 				if(settings.isMirrored()){
-					flip = new TranslationTextComponent("desc.immersivepetroleum.info.projector.flipped.true").mergeStyle(TextFormatting.DARK_GRAY);
+					flip = new TranslatableComponent("desc.immersivepetroleum.info.projector.flipped.true").withStyle(ChatFormatting.DARK_GRAY);
 				}else{
-					flip = new TranslationTextComponent("desc.immersivepetroleum.info.projector.flipped.false").mergeStyle(TextFormatting.DARK_GRAY);
+					flip = new TranslatableComponent("desc.immersivepetroleum.info.projector.flipped.false").withStyle(ChatFormatting.DARK_GRAY);
 				}
 				
 				if(settings.getPos() != null){
 					int x = settings.getPos().getX();
 					int y = settings.getPos().getY();
 					int z = settings.getPos().getZ();
-					
-					ITextComponent centerText = new TranslationTextComponent("desc.immersivepetroleum.info.projector.center", x, y, z).mergeStyle(TextFormatting.DARK_GRAY);
+
+					Component centerText = new TranslatableComponent("desc.immersivepetroleum.info.projector.center", x, y, z).withStyle(ChatFormatting.DARK_GRAY);
 					tooltip.add(indent(centerText));
 				}
 				
 				tooltip.add(indent(rotation));
 				tooltip.add(indent(flip));
 			}else{
-				ITextComponent text = new StringTextComponent("[")
-						.appendSibling(new TranslationTextComponent("desc.immersivepetroleum.info.projector.holdshift"))
-						.appendString("] ")
-						.appendSibling(new TranslationTextComponent("desc.immersivepetroleum.info.projector.holdshift.text"))
-						.mergeStyle(TextFormatting.DARK_AQUA);
+				Component text = new TextComponent("[")
+						.append(new TranslatableComponent("desc.immersivepetroleum.info.projector.holdshift"))
+						.append("] ")
+						.append(new TranslatableComponent("desc.immersivepetroleum.info.projector.holdshift.text"))
+						.withStyle(ChatFormatting.DARK_AQUA);
 				tooltip.add(text);
 			}
 			
 			if(isPressing(GLFW.GLFW_KEY_LEFT_CONTROL) || isPressing(GLFW.GLFW_KEY_RIGHT_CONTROL)){
-				ITextComponent title = new TranslationTextComponent("desc.immersivepetroleum.info.projector.holdctrl.text").mergeStyle(TextFormatting.DARK_PURPLE);
-				ITextComponent ctrl0 = new TranslationTextComponent("desc.immersivepetroleum.info.projector.control1").mergeStyle(TextFormatting.DARK_GRAY);
-				ITextComponent ctrl1 = new TranslationTextComponent("desc.immersivepetroleum.info.projector.control2", ClientProxy.keybind_preview_flip.func_238171_j_()).mergeStyle(TextFormatting.DARK_GRAY);
-				ITextComponent ctrl2 = new TranslationTextComponent("desc.immersivepetroleum.info.projector.control3").mergeStyle(TextFormatting.DARK_GRAY);
+				Component title = new TranslatableComponent("desc.immersivepetroleum.info.projector.holdctrl.text").withStyle(ChatFormatting.DARK_PURPLE);
+				Component ctrl0 = new TranslatableComponent("desc.immersivepetroleum.info.projector.control1").withStyle(ChatFormatting.DARK_GRAY);
+				Component ctrl1 = new TranslatableComponent("desc.immersivepetroleum.info.projector.control2", ClientProxy.keybind_preview_flip.getTranslatedKeyMessage()).withStyle(ChatFormatting.DARK_GRAY);
+				Component ctrl2 = new TranslatableComponent("desc.immersivepetroleum.info.projector.control3").withStyle(ChatFormatting.DARK_GRAY);
 				
 				tooltip.add(title);
 				tooltip.add(indent(ctrl0));
 				tooltip.add(indent(ctrl1));
 				tooltip.add(indent(ctrl2));
 			}else{
-				ITextComponent text = new StringTextComponent("[")
-						.appendSibling(new TranslationTextComponent("desc.immersivepetroleum.info.projector.holdctrl"))
-						.appendString("] ")
-						.appendSibling(new TranslationTextComponent("desc.immersivepetroleum.info.projector.holdctrl.text"))
-						.mergeStyle(TextFormatting.DARK_PURPLE);
+				Component text = new TextComponent("[")
+						.append(new TranslatableComponent("desc.immersivepetroleum.info.projector.holdctrl"))
+						.append("] ")
+						.append(new TranslatableComponent("desc.immersivepetroleum.info.projector.holdctrl.text"))
+						.withStyle(ChatFormatting.DARK_PURPLE);
 				tooltip.add(text);
 			}
 		}else{
-			tooltip.add(new TranslationTextComponent("desc.immersivepetroleum.info.projector.noMultiblock"));
+			tooltip.add(new TranslatableComponent("desc.immersivepetroleum.info.projector.noMultiblock"));
 		}
 	}
 	
-	private ITextComponent indent(ITextComponent text){
-		return new StringTextComponent("  ").appendSibling(text);
+	private Component indent(Component text){
+		return new TextComponent("  ").append(text);
 	}
 	
 	/** Find the key that is being pressed while minecraft is in focus */
 	@OnlyIn(Dist.CLIENT)
 	private boolean isPressing(int key){
-		long window = Minecraft.getInstance().getMainWindow().getHandle();
+		long window = Minecraft.getInstance().getWindow().getWindow();
 		return GLFW.glfwGetKey(window, key) == GLFW.GLFW_PRESS;
 	}
 	
@@ -201,22 +200,22 @@ public class ProjectorItem extends IPItemBase{
 	}
 	
 	@Override
-	public void fillItemGroup(ItemGroup group, NonNullList<ItemStack> items){
-		if(this.isInGroup(group)){
+	public void fillItemCategory(CreativeModeTab group, NonNullList<ItemStack> items){
+		if(this.allowdedIn(group)){
 			items.add(new ItemStack(this, 1));
 		}
 	}
 	
 	@Override
-	public ActionResult<ItemStack> onItemRightClick(World worldIn, PlayerEntity playerIn, Hand handIn){
-		ItemStack held = playerIn.getHeldItem(handIn);
+	public InteractionResultHolder<ItemStack> use(Level worldIn, Player playerIn, InteractionHand handIn){
+		ItemStack held = playerIn.getItemInHand(handIn);
 		
 		boolean changeMode = false;
 		Settings settings = getSettings(held);
 		switch(settings.getMode()){
 			case PROJECTION:{
-				if(worldIn.isRemote){
-					if(playerIn.isSneaking()){
+				if(!worldIn.isClientSide){
+					if(playerIn.isShiftKeyDown()){
 						if(settings.getPos() != null){
 							settings.setPos(null);
 							settings.sendPacketToServer(handIn);
@@ -228,8 +227,8 @@ public class ProjectorItem extends IPItemBase{
 				break;
 			}
 			case MULTIBLOCK_SELECTION:{
-				if(worldIn.isRemote){
-					if(!playerIn.isSneaking()){
+				if(!worldIn.isClientSide){
+					if(!playerIn.isShiftKeyDown()){
 						ImmersivePetroleum.proxy.openProjectorGui(handIn, held);
 					}else{
 						changeMode = true;
@@ -240,70 +239,70 @@ public class ProjectorItem extends IPItemBase{
 			default:break;
 		}
 		
-		if(worldIn.isRemote && changeMode){
+		if(!worldIn.isClientSide && changeMode){
 			int modeId = settings.getMode().ordinal() + 1;
 			settings.setMode(Mode.values()[modeId >= Mode.values().length ? 0 : modeId]);
 			settings.applyTo(held);
 			settings.sendPacketToServer(handIn);
-			playerIn.sendStatusMessage(settings.getMode().getTranslated(), true);
+			playerIn.displayClientMessage(settings.getMode().getTranslated(), true);
 		}
 		
-		return ActionResult.resultSuccess(held);
+		return InteractionResultHolder.success(held);
 	}
 	
 	@Override
-	public ActionResultType onItemUse(ItemUseContext context){
-		World world = context.getWorld();
-		PlayerEntity playerIn = context.getPlayer();
-		Hand hand = context.getHand();
-		BlockPos pos = context.getPos();
-		Direction facing = context.getFace();
+	public InteractionResult useOn(UseOnContext context){
+		Level world = context.getLevel();
+		Player playerIn = context.getPlayer();
+		InteractionHand hand = context.getHand();
+		BlockPos pos = context.getClickedPos();
+		Direction facing = context.getClickedFace();
 		
-		ItemStack stack = playerIn.getHeldItem(hand);
+		ItemStack stack = playerIn.getItemInHand(hand);
 		final Settings settings = ProjectorItem.getSettings(stack);
-		if(playerIn.isSneaking() && settings.getPos() != null){
-			if(world.isRemote){
+		if(playerIn.isShiftKeyDown() && settings.getPos() != null){
+			if(!world.isClientSide){
 				settings.setPos(null);
 				settings.applyTo(stack);
 				settings.sendPacketToServer(hand);
 			}
 			
-			return ActionResultType.SUCCESS;
+			return InteractionResult.SUCCESS;
 		}
 		
 		if(settings.getMode() == Mode.PROJECTION && settings.getPos() == null && settings.getMultiblock() != null){
 			BlockState state = world.getBlockState(pos);
 			
-			final Mutable hit = pos.toMutable();
+			final BlockPos.MutableBlockPos hit = pos.mutable();
 			if(!state.getMaterial().isReplaceable() && facing == Direction.UP){
-				hit.setAndOffset(hit, 0, 1, 0);
+				hit.setWithOffset(hit, 0, 1, 0);
 			}
 			
-			Vector3i size = settings.getMultiblock().getSize(world);
+			Vec3i size = settings.getMultiblock().getSize(world);
 			alignHit(hit, playerIn, size, settings.getRotation(), settings.isMirrored());
 			
-			if(playerIn.isSneaking() && playerIn.isCreative()){
-				if(!world.isRemote){
+			if(playerIn.isShiftKeyDown() && playerIn.isCreative()){
+				if(world.isClientSide){
 					if(settings.getMultiblock().getUniqueName().getPath().contains("excavator_demo") || settings.getMultiblock().getUniqueName().getPath().contains("bucket_wheel")){
-						hit.setAndOffset(hit, 0, -2, 0);
+						hit.setWithOffset(hit, 0, -2, 0);
 					}
 					
 					// Creative Placement
 					BiPredicate<Integer, MultiblockProjection.Info> pred = (layer, info) -> {
-						BlockPos realPos = info.tPos.add(hit);
+						BlockPos realPos = info.tPos.offset(hit);
 						BlockState tstate0 = info.getModifiedState(world, realPos);
 						
 						ProjectorEvent.PlaceBlock event = new ProjectorEvent.PlaceBlock(info.multiblock, info.templateWorld, info.tBlockInfo.pos, world, realPos, tstate0, settings.getRotation());
 						if(!MinecraftForge.EVENT_BUS.post(event)){
 							BlockState tstate1 = event.getState();
 							
-							if(world.setBlockState(realPos, tstate1)){
+							if(world.setBlockAndUpdate(realPos, tstate1)){
 								if(tstate0 == tstate1 && info.tBlockInfo.nbt != null){
-									TileEntity te = world.getTileEntity(realPos);
-									
-									te.mirror(info.settings.getMirror());
-									te.rotate(info.settings.getRotation());
-									te.markDirty();
+									BlockEntity te = world.getBlockEntity(realPos);
+									//TODO functions were removed
+									//te.mirror(info.settings.getMirror());
+									//te.rotate(info.settings.getRotation());
+									te.setChanged();
 								}
 								
 								ProjectorEvent.PlaceBlockPost postEvent = new ProjectorEvent.PlaceBlockPost(info.multiblock, info.templateWorld, event.getTemplatePos(), world, realPos, tstate1, settings.getRotation());
@@ -320,20 +319,20 @@ public class ProjectorItem extends IPItemBase{
 					projection.processAll(pred);
 				}
 				
-				return ActionResultType.SUCCESS;
+				return InteractionResult.SUCCESS;
 				
 			}else{
-				if(world.isRemote){
+				if(!world.isClientSide){
 					settings.setPos(hit);
 					settings.applyTo(stack);
 					settings.sendPacketToServer(hand);
 				}
 				
-				return ActionResultType.SUCCESS;
+				return InteractionResult.SUCCESS;
 			}
 		}
 		
-		return ActionResultType.PASS;
+		return InteractionResult.PASS;
 	}
 	
 	// STATIC METHODS
@@ -342,16 +341,16 @@ public class ProjectorItem extends IPItemBase{
 		return new Settings(stack);
 	}
 	
-	private static void alignHit(Mutable hit, PlayerEntity playerIn, Vector3i size, Rotation rotation, boolean mirror){
+	private static void alignHit(BlockPos.MutableBlockPos hit, Player playerIn, Vec3i size, Rotation rotation, boolean mirror){
 		int x = ((rotation.ordinal() % 2 == 0) ? size.getX() : size.getZ()) / 2;
 		int z = ((rotation.ordinal() % 2 == 0) ? size.getZ() : size.getX()) / 2;
-		Direction facing = playerIn.getHorizontalFacing();
+		Direction facing = playerIn.getDirection();
 		
 		switch(facing){
-			case NORTH:	hit.setAndOffset(hit, 0, 0, -z);break;
-			case SOUTH:	hit.setAndOffset(hit, 0, 0, z);break;
-			case EAST:	hit.setAndOffset(hit, x, 0, 0);break;
-			case WEST:	hit.setAndOffset(hit, -x, 0, 0);break;
+			case NORTH:	hit.setWithOffset(hit, 0, 0, -z);break;
+			case SOUTH:	hit.setWithOffset(hit, 0, 0, z);break;
+			case EAST:	hit.setWithOffset(hit, x, 0, 0);break;
+			case WEST:	hit.setWithOffset(hit, -x, 0, 0);break;
 			default:break;
 		}
 	}
@@ -362,59 +361,59 @@ public class ProjectorItem extends IPItemBase{
 	@Mod.EventBusSubscriber(modid = ImmersivePetroleum.MODID, value = Dist.CLIENT)
 	public static class ClientRenderHandler{
 		@SubscribeEvent
-		public static void renderLast(RenderWorldLastEvent event){
+		public static void renderLast(RenderLevelLastEvent event){
 			Minecraft mc = ClientUtils.mc();
 			
 			if(mc.player != null){
-				MatrixStack matrix = event.getMatrixStack();
-				matrix.push();
+				PoseStack matrix = event.getPoseStack();
+				matrix.pushPose();
 				{
 					// Anti-Jiggle when moving
-					Vector3d renderView = ClientUtils.mc().gameRenderer.getActiveRenderInfo().getProjectedView();
+					Vec3 renderView = ClientUtils.mc().gameRenderer.getMainCamera().getPosition();
 					matrix.translate(-renderView.x, -renderView.y, -renderView.z);
 					
-					ItemStack secondItem = mc.player.getHeldItemOffhand();
+					ItemStack secondItem = mc.player.getOffhandItem();
 					boolean off = !secondItem.isEmpty() && secondItem.getItem() == Items.projector && ItemNBTHelper.hasKey(secondItem, "settings");
 					
 					for(int i = 0;i <= 10;i++){
-						ItemStack stack = (i == 10 ? secondItem : mc.player.inventory.getStackInSlot(i));
+						ItemStack stack = (i == 10 ? secondItem : mc.player.getInventory().getItem(i));
 						if(!stack.isEmpty() && stack.getItem() == Items.projector && ItemNBTHelper.hasKey(stack, "settings")){
 							Settings settings = getSettings(stack);
-							matrix.push();
+							matrix.pushPose();
 							{
-								boolean renderMoving = i == mc.player.inventory.currentItem || (i == 10 && off);
-								renderSchematic(matrix, settings, mc.player, mc.player.world, event.getPartialTicks(), renderMoving);
+								boolean renderMoving = i == mc.player.getInventory().selected || (i == 10 && off);
+								renderSchematic(matrix, settings, mc.player, mc.player.level, event.getPartialTick(), renderMoving);
 							}
-							matrix.pop();
+							matrix.popPose();
 						}
 					}
 				}
-				matrix.pop();
+				matrix.popPose();
 			}
 		}
 		
-		static final Mutable FULL_MAX = new Mutable(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
-		public static void renderSchematic(MatrixStack matrix, Settings settings, PlayerEntity player, World world, float partialTicks, boolean renderMoving){
+		static final BlockPos.MutableBlockPos FULL_MAX = new BlockPos.MutableBlockPos(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
+		public static void renderSchematic(PoseStack matrix, Settings settings, Player player, Level world, float partialTicks, boolean renderMoving){
 			if(settings.getMultiblock() == null)
 				return;
 			
-			Vector3i size = settings.getMultiblock().getSize(world);
-			final Mutable hit = new Mutable(FULL_MAX.getX(), FULL_MAX.getY(), FULL_MAX.getZ());
+			Vec3i size = settings.getMultiblock().getSize(world);
+			final BlockPos.MutableBlockPos hit = new BlockPos.MutableBlockPos(FULL_MAX.getX(), FULL_MAX.getY(), FULL_MAX.getZ());
 			final MutableBoolean isPlaced = new MutableBoolean(false);
 			if(settings.getPos() != null){
-				hit.setPos(settings.getPos());
+				hit.set(settings.getPos());
 				isPlaced.setTrue();
 				
-			}else if(renderMoving && ClientUtils.mc().objectMouseOver != null && ClientUtils.mc().objectMouseOver.getType() == Type.BLOCK){
-				BlockRayTraceResult blockRTResult = (BlockRayTraceResult) ClientUtils.mc().objectMouseOver;
+			}else if(renderMoving && ClientUtils.mc().hitResult != null && ClientUtils.mc().hitResult.getType() == HitResult.Type.BLOCK){
+				BlockHitResult blockRTResult = (BlockHitResult) ClientUtils.mc().hitResult;
 				
-				BlockPos pos = (BlockPos) blockRTResult.getPos();
+				BlockPos pos = (BlockPos) blockRTResult.getBlockPos();
 				
 				BlockState state = world.getBlockState(pos);
-				if(state.getMaterial().isReplaceable() || blockRTResult.getFace() != Direction.UP){
-					hit.setPos(pos);
+				if(state.getMaterial().isReplaceable() || blockRTResult.getDirection() != Direction.UP){
+					hit.set(pos);
 				}else{
-					hit.setAndOffset(pos, 0, 1, 0);
+					hit.setWithOffset(pos, 0, 1, 0);
 				}
 				
 				alignHit(hit, player, size, settings.getRotation(), settings.isMirrored());
@@ -423,7 +422,7 @@ public class ProjectorItem extends IPItemBase{
 			if(!hit.equals(FULL_MAX)){
 				ResourceLocation name = settings.getMultiblock().getUniqueName();
 				if(name.getPath().contains("excavator_demo") || name.getPath().contains("bucket_wheel")){
-					hit.setAndOffset(hit, 0, -2, 0);
+					hit.setWithOffset(hit, 0, -2, 0);
 				}
 				
 				MultiblockProjection projection = new MultiblockProjection(world, settings.getMultiblock());
@@ -444,15 +443,16 @@ public class ProjectorItem extends IPItemBase{
 					
 					if(isPlaced.booleanValue()){ // Render only slices when placed
 						if(layer == currentLayer.getValue()){
-							BlockPos realPos = info.tPos.add(hit);
+							BlockPos realPos = info.tPos.offset(hit);
 							BlockState toCompare = world.getBlockState(realPos);
 							BlockState tState = info.getModifiedState(world, realPos);
 							
-							TileEntity te = info.templateWorld.getTileEntity(realPos);
-							if(te != null){
+							BlockEntity te = info.templateWorld.getBlockEntity(realPos);
+							//TODO mirror functions were removed
+							/*if(te != null){
 								te.mirror(info.settings.getMirror());
 								te.rotate(info.settings.getRotation());
-							}
+							}*/
 							
 							boolean skip = false;
 							if(tState == toCompare){
@@ -462,7 +462,7 @@ public class ProjectorItem extends IPItemBase{
 							}else{
 								// Making it this far only needs an air check,
 								// the other already proved to be false.
-								if(!toCompare.getBlock().isAir(toCompare, info.templateWorld, realPos)){
+								if(toCompare.getMaterial() != Material.AIR){
 									toRender.add(Pair.of(RenderLayer.BAD, info));
 									skip = true;
 								}else{
@@ -482,10 +482,10 @@ public class ProjectorItem extends IPItemBase{
 				projection.processAll(bipred);
 				
 				boolean perfect = (goodBlocks.getValue() == projection.getBlockCount());
-				
-				Mutable min = new Mutable(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
-				Mutable max = new Mutable(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
-				float flicker = (world.rand.nextInt(10) == 0) ? 0.75F : (world.rand.nextInt(20) == 0 ? 0.5F : 1F);
+
+				BlockPos.MutableBlockPos min = new BlockPos.MutableBlockPos(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
+				BlockPos.MutableBlockPos max = new BlockPos.MutableBlockPos(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
+				float flicker = (world.random.nextInt(10) == 0) ? 0.75F : (world.random.nextInt(20) == 0 ? 0.5F : 1F);
 				matrix.translate(hit.getX(), hit.getY(), hit.getZ());
 				
 				toRender.sort((a, b) -> {
@@ -497,7 +497,7 @@ public class ProjectorItem extends IPItemBase{
 					return 0;
 				});
 				
-				ItemStack heldStack = player.getHeldItemMainhand();
+				ItemStack heldStack = player.getMainHandItem();
 				for(Pair<RenderLayer, MultiblockProjection.Info> pair:toRender){
 					MultiblockProjection.Info rInfo = pair.getRight();
 					
@@ -506,7 +506,7 @@ public class ProjectorItem extends IPItemBase{
 							boolean held = heldStack.getItem() == rInfo.getRawState().getBlock().asItem();
 							float alpha = held ? 0.55F : 0.25F;
 							
-							matrix.push();
+							matrix.pushPose();
 							{
 								renderPhantom(matrix, world, rInfo, settings.isMirrored(), flicker, alpha, partialTicks);
 								
@@ -514,17 +514,17 @@ public class ProjectorItem extends IPItemBase{
 									renderCenteredOutlineBox(matrix, 0xAFAFAF, flicker);
 								}
 							}
-							matrix.pop();
+							matrix.popPose();
 							break;
 						}
 						case BAD:{ // Bad block
-							matrix.push();
+							matrix.pushPose();
 							{
 								matrix.translate(rInfo.tPos.getX(), rInfo.tPos.getY(), rInfo.tPos.getZ());
 								
 								renderCenteredOutlineBox(matrix, 0xFF0000, flicker);
 							}
-							matrix.pop();
+							matrix.popPose();
 							break;
 						}
 						case PERFECT:{
@@ -532,12 +532,12 @@ public class ProjectorItem extends IPItemBase{
 							int y = rInfo.tPos.getY();
 							int z = rInfo.tPos.getZ();
 							
-							min.setPos(
+							min.set(
 									(x < min.getX() ? x : min.getX()),
 									(y < min.getY() ? y : min.getY()),
 									(z < min.getZ() ? z : min.getZ()));
 							
-							max.setPos(
+							max.set(
 									(x > max.getX() ? x : max.getX()),
 									(y > max.getY() ? y : max.getY()),
 									(z > max.getZ() ? z : max.getZ()));
@@ -548,72 +548,72 @@ public class ProjectorItem extends IPItemBase{
 				
 				if(perfect){
 					// Multiblock Correctly Built
-					matrix.push();
+					matrix.pushPose();
 					{
 						renderOutlineBox(matrix, min, max, 0x00BF00, flicker);
 					}
-					matrix.pop();
+					matrix.popPose();
 					
 					// Debugging Stuff
-					if(!player.getHeldItemOffhand().isEmpty() && player.getHeldItemOffhand().getItem() == IPContent.debugItem){
-						matrix.push();
+					if(!player.getOffhandItem().isEmpty() && player.getOffhandItem().getItem() == IPContent.debugItem){
+						matrix.pushPose();
 						{
 							// Min (Red)
 							matrix.translate(min.getX(), min.getY(), min.getZ());
 							renderCenteredOutlineBox(matrix, 0xFF0000, flicker);
 						}
-						matrix.pop();
+						matrix.popPose();
 						
-						matrix.push();
+						matrix.pushPose();
 						{
 							// Max (Greem)
 							matrix.translate(max.getX(), max.getY(), max.getZ());
 							renderCenteredOutlineBox(matrix, 0x00FF00, flicker);
 						}
-						matrix.pop();
+						matrix.popPose();
 						
-						matrix.push();
+						matrix.pushPose();
 						{
 							// Center (Blue)
-							BlockPos center = min.toImmutable().add(max);
+							BlockPos center = min.immutable().offset(max);
 							matrix.translate(center.getX() / 2, center.getY() / 2, center.getZ() / 2);
 							
 							renderCenteredOutlineBox(matrix, 0x0000FF, flicker);
 						}
-						matrix.pop();
+						matrix.popPose();
 					}
 				}
 			}
 		}
 		
-		private static void renderPhantom(MatrixStack matrix, World realWorld, MultiblockProjection.Info rInfo, boolean mirror, float flicker, float alpha, float partialTicks){
-			BlockRendererDispatcher dispatcher = ClientUtils.mc().getBlockRendererDispatcher();
-			BlockModelRenderer blockRenderer = dispatcher.getBlockModelRenderer();
+		private static void renderPhantom(PoseStack matrix, Level realWorld, MultiblockProjection.Info rInfo, boolean mirror, float flicker, float alpha, float partialTicks){
+			BlockModelShaper dispatcher = ClientUtils.mc().getBlockRenderer().getBlockModelShaper();
 			BlockColors blockColors = ClientUtils.mc().getBlockColors();
+			ModelBlockRenderer blockRenderer = new net.minecraftforge.client.model.pipeline.ForgeBlockModelRenderer(blockColors);
 			
 			// Centers the preview block
 			matrix.translate(rInfo.tPos.getX(), rInfo.tPos.getY(), rInfo.tPos.getZ());
 			
-			IRenderTypeBuffer.Impl buffer = IRenderTypeBuffer.getImpl(Tessellator.getInstance().getBuffer());
+			MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
 			
 			BlockState state = rInfo.getModifiedState(realWorld, rInfo.tPos);
 			
 			ProjectorEvent.RenderBlock renderEvent = new ProjectorEvent.RenderBlock(rInfo.multiblock, rInfo.templateWorld, rInfo.tBlockInfo.pos, realWorld, rInfo.tPos, state, rInfo.settings.getRotation());
 			if(!MinecraftForge.EVENT_BUS.post(renderEvent)){
 				state = renderEvent.getState();
-				state.updateNeighbours(realWorld, rInfo.tPos, 3);
+				state.updateNeighbourShapes(realWorld, rInfo.tPos, 3);
 				
 				IModelData modelData = EmptyModelData.INSTANCE;
-				TileEntity te = rInfo.templateWorld.getTileEntity(rInfo.tBlockInfo.pos);
+				BlockEntity te = rInfo.templateWorld.getBlockEntity(rInfo.tBlockInfo.pos);
 				if(te != null){
-					te.cachedBlockState = state;
+					te.setBlockState(state);
 					modelData = te.getModelData();
 				}
-				
-				BlockRenderType blockrendertype = state.getRenderType();
-				if(blockrendertype != BlockRenderType.INVISIBLE){
-					if(blockrendertype == BlockRenderType.MODEL){
-						IBakedModel ibakedmodel = dispatcher.getModelForState(state);
+
+				RenderShape blockrendertype = state.getRenderShape();
+				if(blockrendertype != RenderShape.INVISIBLE){
+					if(blockrendertype == RenderShape.MODEL){
+						BakedModel ibakedmodel = dispatcher.getBlockModel(state);
 						int i = blockColors.getColor(state, null, null, 0);
 						float red = (i >> 16 & 0xFF) / 255F;
 						float green = (i >> 8 & 0xFF) / 255F;
@@ -621,23 +621,23 @@ public class ProjectorItem extends IPItemBase{
 						
 						modelData = ibakedmodel.getModelData(rInfo.templateWorld, rInfo.tBlockInfo.pos, state, modelData);
 						
-						blockRenderer.renderModel(matrix.getLast(), buffer.getBuffer(RenderType.getTranslucent()), state, ibakedmodel, red, green, blue, 0xF000F0, OverlayTexture.NO_OVERLAY, modelData);
+						blockRenderer.renderModel(matrix.last(), buffer.getBuffer(RenderType.translucent()), state, ibakedmodel, red, green, blue, 0xF000F0, OverlayTexture.NO_OVERLAY, modelData);
 						
-					}else if(blockrendertype == BlockRenderType.ENTITYBLOCK_ANIMATED){
+					}else if(blockrendertype == RenderShape.ENTITYBLOCK_ANIMATED){
 						ItemStack stack = new ItemStack(state.getBlock());
-						stack.getItem().getItemStackTileEntityRenderer().func_239207_a_(stack, ItemCameraTransforms.TransformType.NONE, matrix, buffer, 0xF000F0, OverlayTexture.NO_OVERLAY);
+						net.minecraftforge.client.RenderProperties.get(stack.getItem()).getItemStackRenderer().renderByItem(stack, ItemTransforms.TransformType.NONE, matrix, buffer, 0xF000F0, OverlayTexture.NO_OVERLAY);
 					}
 				}
 			}
 			
-			ShaderUtil.alpha_static(flicker * alpha, ClientUtils.mc().player.ticksExisted + partialTicks);
-			buffer.finish();
+			ShaderUtil.alpha_static(flicker * alpha, ClientUtils.mc().player.tickCount + partialTicks);
+			buffer.endBatch();
 			ShaderUtil.releaseShader();
 		}
 		
-		private static void renderOutlineBox(MatrixStack matrix, Vector3i min, Vector3i max, int rgb, float flicker){
-			IRenderTypeBuffer.Impl buffer = IRenderTypeBuffer.getImpl(Tessellator.getInstance().getBuffer());
-			IVertexBuilder builder = buffer.getBuffer(IPRenderTypes.TRANSLUCENT_LINES);
+		private static void renderOutlineBox(PoseStack matrix, BlockPos.MutableBlockPos min, BlockPos.MutableBlockPos max, int rgb, float flicker){
+			MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
+			VertexConsumer builder = buffer.getBuffer(IPRenderTypes.TRANSLUCENT_LINES);
 			
 			float alpha = 0.25F + (0.5F * flicker);
 			
@@ -654,45 +654,45 @@ public class ProjectorItem extends IPItemBase{
 			float b = ((rgb >> 0) & 0xFF) / 255F;
 			
 			// matrix.scale(xScale, yScale, zScale);
-			Matrix4f mat = matrix.getLast().getMatrix();
+			Matrix4f mat = matrix.last().pose();
 			
-			builder.pos(mat, xMin, yMax, zMin).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMax, zMin).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMax, zMin).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMax, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMax, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMin, yMax, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMin, yMax, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMin, yMax, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMax, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMax, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMax, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMax, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMax, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMax, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMax, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMax, zMin).color(r, g, b, alpha).endVertex();
 			
-			builder.pos(mat, xMin, yMax, zMin).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMin, yMin, zMin).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMax, zMin).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMin, zMin).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMin, yMax, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMin, yMin, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMax, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMin, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMax, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMin, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMax, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMin, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMax, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMin, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMax, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMin, zMax).color(r, g, b, alpha).endVertex();
 			
-			builder.pos(mat, xMin, yMin, zMin).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMin, zMin).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMin, zMin).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMin, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMax, yMin, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMin, yMin, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMin, yMin, zMax).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, xMin, yMin, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMin, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMin, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMin, zMin).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMin, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMax, yMin, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMin, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMin, zMax).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, xMin, yMin, zMin).color(r, g, b, alpha).endVertex();
 			
-			buffer.finish();
+			buffer.endBatch();
 		}
 		
-		private static void renderCenteredOutlineBox(MatrixStack matrix, int rgb, float flicker){
-			IRenderTypeBuffer.Impl buffer = IRenderTypeBuffer.getImpl(Tessellator.getInstance().getBuffer());
-			IVertexBuilder builder = buffer.getBuffer(IPRenderTypes.TRANSLUCENT_LINES);
+		private static void renderCenteredOutlineBox(PoseStack matrix, int rgb, float flicker){
+			MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
+			VertexConsumer builder = buffer.getBuffer(IPRenderTypes.TRANSLUCENT_LINES);
 			
 			matrix.translate(0.5, 0.5, 0.5);
 			matrix.scale(1.01F, 1.01F, 1.01F);
-			Matrix4f mat = matrix.getLast().getMatrix();
+			Matrix4f mat = matrix.last().pose();
 			
 			float r = ((rgb >> 16) & 0xFF) / 255.0F;
 			float g = ((rgb >> 8) & 0xFF) / 255.0F;
@@ -700,34 +700,34 @@ public class ProjectorItem extends IPItemBase{
 			float alpha = .375F * flicker;
 			float s = 0.5F;
 			
-			builder.pos(mat, -s, s, -s)	.color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s, s, -s)	.color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s, s, -s)	.color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s, s,  s)	.color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s, s,  s)	.color(r, g, b, alpha).endVertex();
-			builder.pos(mat, -s, s,  s)	.color(r, g, b, alpha).endVertex();
-			builder.pos(mat, -s, s,  s)	.color(r, g, b, alpha).endVertex();
-			builder.pos(mat, -s, s, -s)	.color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s, s, -s)	.color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s, s, -s)	.color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s, s, -s)	.color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s, s,  s)	.color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s, s,  s)	.color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s, s,  s)	.color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s, s,  s)	.color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s, s, -s)	.color(r, g, b, alpha).endVertex();
 			
-			builder.pos(mat, -s,  s, -s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, -s, -s, -s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s,  s, -s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s, -s, -s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, -s,  s,  s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, -s, -s,  s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s,  s,  s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s, -s,  s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s,  s, -s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s, -s, -s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s,  s, -s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s, -s, -s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s,  s,  s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s, -s,  s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s,  s,  s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s, -s,  s).color(r, g, b, alpha).endVertex();
 			
-			builder.pos(mat, -s, -s, -s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s, -s, -s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s, -s, -s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s, -s,  s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat,  s, -s,  s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, -s, -s,  s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, -s, -s,  s).color(r, g, b, alpha).endVertex();
-			builder.pos(mat, -s, -s, -s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s, -s, -s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s, -s, -s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s, -s, -s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s, -s,  s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat,  s, -s,  s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s, -s,  s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s, -s,  s).color(r, g, b, alpha).endVertex();
+			builder.vertex(mat, -s, -s, -s).color(r, g, b, alpha).endVertex();
 			
-			buffer.finish();
+			buffer.endBatch();
 		}
 	}
 	
@@ -738,9 +738,9 @@ public class ProjectorItem extends IPItemBase{
 		
 		@SubscribeEvent
 		public static void onPlayerTick(TickEvent.PlayerTickEvent event){
-			if(event.side == LogicalSide.CLIENT && event.player != null && event.player == ClientUtils.mc().getRenderViewEntity()){
+			if(event.side == LogicalSide.CLIENT && event.player != null && event.player == ClientUtils.mc().getCameraEntity()){
 				if(event.phase == Phase.END){
-					if(!ClientProxy.keybind_preview_flip.isInvalid() && ClientProxy.keybind_preview_flip.isPressed()){
+					if(!ClientProxy.keybind_preview_flip.isUnbound() && ClientProxy.keybind_preview_flip.consumeClick()){
 						doAFlip();
 					}
 				}
@@ -752,13 +752,13 @@ public class ProjectorItem extends IPItemBase{
 			double delta = event.getScrollDelta();
 			
 			if(shiftHeld && delta != 0.0){
-				PlayerEntity player = ClientUtils.mc().player;
-				ItemStack mainItem = player.getHeldItemMainhand();
-				ItemStack secondItem = player.getHeldItemOffhand();
+				Player player = ClientUtils.mc().player;
+				ItemStack mainItem = player.getMainHandItem();
+				ItemStack secondItem = player.getMainHandItem();
 				
-				boolean main = !mainItem.isEmpty() && mainItem.getItem() == Items.projector && ItemNBTHelper.hasKey(mainItem, "settings", NBT.TAG_COMPOUND);
-				boolean off = !secondItem.isEmpty() && secondItem.getItem() == Items.projector && ItemNBTHelper.hasKey(secondItem, "settings", NBT.TAG_COMPOUND);
-				
+				boolean main = !mainItem.isEmpty() && mainItem.getItem() == Items.projector && ItemNBTHelper.hasKey(mainItem, "settings", Tag.TAG_COMPOUND);
+				boolean off = !secondItem.isEmpty() && secondItem.getItem() == Items.projector && ItemNBTHelper.hasKey(secondItem, "settings", Tag.TAG_COMPOUND);
+
 				if(main || off){
 					ItemStack target = main ? mainItem : secondItem;
 					
@@ -772,10 +772,10 @@ public class ProjectorItem extends IPItemBase{
 						}
 						
 						settings.applyTo(target);
-						settings.sendPacketToServer(main ? Hand.MAIN_HAND : Hand.OFF_HAND);
+						settings.sendPacketToServer(main ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
 						
-						Direction facing = Direction.byHorizontalIndex(settings.getRotation().ordinal());
-						player.sendStatusMessage(new TranslationTextComponent("desc.immersivepetroleum.info.projector.rotated." + facing), true);
+						Direction facing = Direction.from2DDataValue(settings.getRotation().ordinal());
+						player.displayClientMessage(new TranslatableComponent("desc.immersivepetroleum.info.projector.rotated." + facing), true);
 						
 						event.setCanceled(true);
 					}
@@ -800,12 +800,12 @@ public class ProjectorItem extends IPItemBase{
 		}
 		
 		private static void doAFlip(){
-			PlayerEntity player = ClientUtils.mc().player;
-			ItemStack mainItem = player.getHeldItemMainhand();
-			ItemStack secondItem = player.getHeldItemOffhand();
+			Player player = ClientUtils.mc().player;
+			ItemStack mainItem = player.getMainHandItem();
+			ItemStack secondItem = player.getMainHandItem();
 			
-			boolean main = !mainItem.isEmpty() && mainItem.getItem() == Items.projector && ItemNBTHelper.hasKey(mainItem, "settings", NBT.TAG_COMPOUND);
-			boolean off = !secondItem.isEmpty() && secondItem.getItem() == Items.projector && ItemNBTHelper.hasKey(secondItem, "settings", NBT.TAG_COMPOUND);
+			boolean main = !mainItem.isEmpty() && mainItem.getItem() == Items.projector && ItemNBTHelper.hasKey(mainItem, "settings", Tag.TAG_COMPOUND);
+			boolean off = !secondItem.isEmpty() && secondItem.getItem() == Items.projector && ItemNBTHelper.hasKey(secondItem, "settings", Tag.TAG_COMPOUND);
 			ItemStack target = main ? mainItem : secondItem;
 			
 			if(main || off){
@@ -813,15 +813,15 @@ public class ProjectorItem extends IPItemBase{
 				
 				settings.flip();
 				settings.applyTo(target);
-				settings.sendPacketToServer(main ? Hand.MAIN_HAND : Hand.OFF_HAND);
+				settings.sendPacketToServer(main ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
 				
-				ITextComponent flip;
+				Component flip;
 				if(settings.isMirrored()){
-					flip = new TranslationTextComponent("desc.immersivepetroleum.info.projector.flipped.true");
+					flip = new TranslatableComponent("desc.immersivepetroleum.info.projector.flipped.true");
 				}else{
-					flip = new TranslationTextComponent("desc.immersivepetroleum.info.projector.flipped.false");
+					flip = new TranslatableComponent("desc.immersivepetroleum.info.projector.flipped.false");
 				}
-				player.sendStatusMessage(flip, true);
+				player.displayClientMessage(flip, true);
 			}
 		}
 	}

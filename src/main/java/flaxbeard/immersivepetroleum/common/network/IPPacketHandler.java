@@ -1,17 +1,17 @@
 package flaxbeard.immersivepetroleum.common.network;
 
-import java.util.function.Function;
-
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.ServerPlayerEntity;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.RegistryKey;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.network.NetworkRegistry;
-import net.minecraftforge.fml.network.PacketDistributor;
-import net.minecraftforge.fml.network.simple.SimpleChannel;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.network.PacketDistributor;
+import net.minecraftforge.network.simple.SimpleChannel;
+
+import java.util.function.Function;
 
 public class IPPacketHandler{
 	public static final String NET_VERSION = "1";
@@ -29,7 +29,7 @@ public class IPPacketHandler{
 	}
 	
 	private static int id = 0;
-	public static <T extends INetMessage> void registerMessage(Class<T> type, Function<PacketBuffer, T> decoder){
+	public static <T extends INetMessage> void registerMessage(Class<T> type, Function<FriendlyByteBuf, T> decoder){
 		INSTANCE.registerMessage(id++, type, INetMessage::toBytes, decoder, (t, ctx) -> {
 			t.process(ctx);
 			ctx.get().setPacketHandled(true);
@@ -38,16 +38,16 @@ public class IPPacketHandler{
 	
 	/**
 	 * Sends a server message directly to the player. Will not do anything if
-	 * the provided instance is not a {@link ServerPlayerEntity} instance
+	 * the provided instance is not a {@link ServerPlayer} instance
 	 * 
-	 * @param serverPlayer The player to send to
+	 * @param player The player to send to
 	 * @param message The message to send
 	 */
-	public static <MSG> void sendToPlayer(PlayerEntity player, MSG message){
-		if(message == null || !(player instanceof ServerPlayerEntity))
+	public static <MSG> void sendToPlayer(Player player, MSG message){
+		if(message == null || !(player instanceof ServerPlayer))
 			return;
 		
-		INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayerEntity) player), message);
+		INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player), message);
 	}
 	
 	/** Client -> Server */
@@ -65,16 +65,18 @@ public class IPPacketHandler{
 	 * Server -> Client
 	 * </pre>
 	 */
-	public static <MSG> void sendToDimension(RegistryKey<World> dim, MSG message){
-		if(message == null)
+	public static <MSG> void sendToDimension(ResourceKey<Level> dim, MSG message){
+		if(message == null) {
 			return;
+		}
 		
 		INSTANCE.send(PacketDistributor.DIMENSION.with(() -> dim), message);
 	}
 	
 	public static <MSG> void sendAll(MSG message){
-		if(message == null)
+		if(message == null) {
 			return;
+		}
 		
 		INSTANCE.send(PacketDistributor.ALL.noArg(), message);
 	}

@@ -1,17 +1,17 @@
 package flaxbeard.immersivepetroleum.api.crafting;
 
-import java.util.function.DoubleSupplier;
-
 import blusunrize.immersiveengineering.api.crafting.MultiblockRecipe;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipeType;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraftforge.common.util.Lazy;
 
-public abstract class IPMultiblockRecipe extends MultiblockRecipe{
+import java.util.function.DoubleSupplier;
+
+public abstract class IPMultiblockRecipe extends MultiblockRecipe {
 	Lazy<Integer> totalProcessTime;
 	Lazy<Integer> totalProcessEnergy;
-	protected IPMultiblockRecipe(ItemStack outputDummy, IRecipeType<?> type, ResourceLocation id){
+	protected IPMultiblockRecipe(ItemStack outputDummy, RecipeType<?> type, ResourceLocation id){
 		super(outputDummy, type, id);
 	}
 	

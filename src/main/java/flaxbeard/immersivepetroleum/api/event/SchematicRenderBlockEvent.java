@@ -1,13 +1,13 @@
 package flaxbeard.immersivepetroleum.api.event;
 
 import blusunrize.immersiveengineering.api.multiblocks.MultiblockHandler.IMultiblock;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.util.Rotation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
 
@@ -17,12 +17,12 @@ import net.minecraftforge.eventbus.api.Event;
  */
 @Deprecated
 @Cancelable
-public class SchematicRenderBlockEvent extends Event{
+public class SchematicRenderBlockEvent extends Event {
 	
 	@Deprecated
-	public SchematicRenderBlockEvent(IMultiblock multiblock, World world, BlockPos worldPos, BlockPos templatePos, BlockState state, CompoundNBT nbt, Rotation rotation){
+	public SchematicRenderBlockEvent(IMultiblock multiblock, Level world, BlockPos worldPos, BlockPos templatePos, BlockState state, CompoundTag nbt, Rotation rotation){
 	}
-	
+
 	@Deprecated
 	public void setState(BlockState state){
 	}
@@ -32,7 +32,7 @@ public class SchematicRenderBlockEvent extends Event{
 	}
 	
 	@Deprecated
-	public World getWorld(){
+	public Level getWorld(){
 		return null;
 	}
 	
@@ -67,7 +67,7 @@ public class SchematicRenderBlockEvent extends Event{
 	}
 	
 	@Deprecated
-	public CompoundNBT getNBT(){
+	public CompoundTag getNBT(){
 		return null;
 	}
 	

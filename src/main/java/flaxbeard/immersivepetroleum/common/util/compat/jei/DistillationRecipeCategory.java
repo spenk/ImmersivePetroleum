@@ -1,8 +1,5 @@
 package flaxbeard.immersivepetroleum.common.util.compat.jei;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.api.crafting.DistillationRecipe;
 import flaxbeard.immersivepetroleum.common.IPContent;
@@ -12,9 +9,12 @@ import mezz.jei.api.gui.drawable.IDrawableStatic;
 import mezz.jei.api.gui.ingredient.IGuiFluidStackGroup;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.ingredients.IIngredients;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class DistillationRecipeCategory extends IPRecipeCategory<DistillationRecipe>{
 	public static final ResourceLocation ID = new ResourceLocation(ImmersivePetroleum.MODID, "distillation");

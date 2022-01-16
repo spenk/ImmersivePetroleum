@@ -1,11 +1,6 @@
 package flaxbeard.immersivepetroleum.common.util.compat.jei;
 
-import java.text.DecimalFormat;
-import java.util.Arrays;
-import java.util.List;
-
-import com.mojang.blaze3d.matrix.MatrixStack;
-
+import com.mojang.blaze3d.vertex.PoseStack;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.api.crafting.CokerUnitRecipe;
 import flaxbeard.immersivepetroleum.common.IPContent;
@@ -18,11 +13,15 @@ import mezz.jei.api.gui.ingredient.IGuiItemStackGroup;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.ingredients.IIngredients;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.resources.I18n;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
+
+import java.text.DecimalFormat;
+import java.util.Arrays;
+import java.util.List;
 
 public class CokerUnitRecipeCategory extends IPRecipeCategory<CokerUnitRecipe>{
 	public static final ResourceLocation ID = new ResourceLocation(ImmersivePetroleum.MODID, "cokerunit");
@@ -89,20 +88,20 @@ public class CokerUnitRecipeCategory extends IPRecipeCategory<CokerUnitRecipe>{
 	}
 	
 	@Override
-	public void draw(CokerUnitRecipe recipe, MatrixStack matrix, double mouseX, double mouseY){
+	public void draw(CokerUnitRecipe recipe, PoseStack matrix, double mouseX, double mouseY){
 		super.draw(recipe, matrix, mouseX, mouseY);
 		IDrawable background = getBackground();
 		int bWidth = background.getWidth();
 		int bHeight = background.getHeight();
-		FontRenderer font = Minecraft.getInstance().fontRenderer;
+		Font font = Minecraft.getInstance().font;
 		
 		int time = (recipe.getTotalProcessTime() + 2 + 5) * recipe.inputItem.getCount();
 		int energy = recipe.getTotalProcessEnergy();
 		
-		String text0 = I18n.format("desc.immersiveengineering.info.ift", new DecimalFormat("#.##").format(energy));
-		font.drawString(matrix, text0, bWidth - 5 - font.getStringWidth(text0), (bHeight / 3) + font.FONT_HEIGHT, -1);
+		String text0 = I18n.get("desc.immersiveengineering.info.ift", new DecimalFormat("#.##").format(energy));
+		font.draw(matrix, text0, bWidth - 5 - font.width(text0), (bHeight / 3) + font.lineHeight, -1);
 		
-		String text1 = I18n.format("desc.immersiveengineering.info.seconds", new DecimalFormat("#.##").format(time / 20D));
-		font.drawString(matrix, text1, bWidth - 10 - font.getStringWidth(text1), (bHeight / 3) + (font.FONT_HEIGHT * 2), -1);
+		String text1 = I18n.get("desc.immersiveengineering.info.seconds", new DecimalFormat("#.##").format(time / 20D));
+		font.draw(matrix, text1, bWidth - 10 - font.width(text1), (bHeight / 3) + (font.lineHeight * 2), -1);
 	}
 }

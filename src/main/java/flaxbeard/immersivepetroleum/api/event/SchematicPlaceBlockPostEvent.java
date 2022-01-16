@@ -1,11 +1,11 @@
 package flaxbeard.immersivepetroleum.api.event;
 
 import blusunrize.immersiveengineering.api.multiblocks.MultiblockHandler.IMultiblock;
-import net.minecraft.block.BlockState;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.util.Rotation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
 
@@ -15,13 +15,13 @@ import net.minecraftforge.eventbus.api.Event;
  */
 @Deprecated
 @Cancelable
-public class SchematicPlaceBlockPostEvent extends Event{
+public class SchematicPlaceBlockPostEvent extends Event {
 	@Deprecated
-	public SchematicPlaceBlockPostEvent(IMultiblock multiblock, World world, BlockPos worldPos, BlockPos templatePos, BlockState state, CompoundNBT nbt, Rotation rotation){
+	public SchematicPlaceBlockPostEvent(IMultiblock multiblock, Level world, BlockPos worldPos, BlockPos templatePos, BlockState state, CompoundTag nbt, Rotation rotation){
 	}
 	
 	@Deprecated
-	public World getWorld(){
+	public Level getWorld(){
 		return null;
 	}
 	
@@ -51,7 +51,7 @@ public class SchematicPlaceBlockPostEvent extends Event{
 	}
 	
 	@Deprecated
-	public CompoundNBT getNBT(){
+	public CompoundTag getNBT(){
 		return null;
 	}
 	

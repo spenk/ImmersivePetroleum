@@ -1,25 +1,25 @@
 package flaxbeard.immersivepetroleum.api.crafting;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
 import blusunrize.immersiveengineering.api.crafting.FluidTagInput;
 import blusunrize.immersiveengineering.api.crafting.IERecipeSerializer;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.common.cfg.IPServerConfig;
 import flaxbeard.immersivepetroleum.common.crafting.Serializers;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipeType;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.NonNullList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.fluids.FluidStack;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 public class DistillationRecipe extends IPMultiblockRecipe{
-	public static final IRecipeType<DistillationRecipe> TYPE = IRecipeType.register(ImmersivePetroleum.MODID + ":distillationtower");
+	public static final RecipeType<DistillationRecipe> TYPE = RecipeType.register(ImmersivePetroleum.MODID + ":distillationtower");
 	public static Map<ResourceLocation, DistillationRecipe> recipes = new HashMap<>();
 	
 	/** May return null! */
@@ -34,7 +34,7 @@ public class DistillationRecipe extends IPMultiblockRecipe{
 		return null;
 	}
 	
-	public static DistillationRecipe loadFromNBT(CompoundNBT nbt){
+	public static DistillationRecipe loadFromNBT(CompoundTag nbt){
 		FluidStack input = FluidStack.loadFluidStackFromNBT(nbt.getCompound("input"));
 		return findRecipe(input);
 	}
@@ -53,7 +53,7 @@ public class DistillationRecipe extends IPMultiblockRecipe{
 		this.input = input;
 		this.fluidInputList = Collections.singletonList(input);
 		this.fluidOutputList = Arrays.asList(this.fluidOutput);
-		this.outputList = NonNullList.from(ItemStack.EMPTY, itemOutput);
+		this.outputList = NonNullList.of(ItemStack.EMPTY, itemOutput);
 		
 		timeAndEnergy(time, energy);
 		modifyTimeAndEnergy(IPServerConfig.REFINING.distillationTower_timeModifier::get, IPServerConfig.REFINING.distillationTower_energyModifier::get);
@@ -70,10 +70,10 @@ public class DistillationRecipe extends IPMultiblockRecipe{
 	}
 	
 	@Override
-	public NonNullList<ItemStack> getActualItemOutputs(TileEntity tile){
+	public NonNullList<ItemStack> getActualItemOutputs(BlockEntity tile){
 		NonNullList<ItemStack> output = NonNullList.create();
 		for(int i = 0;i < itemOutput.length;i++){
-			if(tile.getWorld().rand.nextFloat() <= chances[i]){
+			if(tile.getLevel().random.nextFloat() <= chances[i]){
 				output.add(itemOutput[i]);
 			}
 		}

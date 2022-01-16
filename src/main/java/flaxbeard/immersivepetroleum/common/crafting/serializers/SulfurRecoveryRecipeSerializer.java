@@ -1,43 +1,42 @@
 package flaxbeard.immersivepetroleum.common.crafting.serializers;
 
-import com.google.gson.JsonObject;
-
 import blusunrize.immersiveengineering.api.ApiUtils;
 import blusunrize.immersiveengineering.api.crafting.FluidTagInput;
 import blusunrize.immersiveengineering.api.crafting.IERecipeSerializer;
+import com.google.gson.JsonObject;
 import flaxbeard.immersivepetroleum.api.crafting.SulfurRecoveryRecipe;
 import flaxbeard.immersivepetroleum.api.crafting.builders.DistillationRecipeBuilder;
 import flaxbeard.immersivepetroleum.common.IPContent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.GsonHelper;
 import net.minecraft.util.Tuple;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 
 public class SulfurRecoveryRecipeSerializer extends IERecipeSerializer<SulfurRecoveryRecipe>{
 	
 	@Override
 	public SulfurRecoveryRecipe readFromJson(ResourceLocation id, JsonObject json){
-		FluidStack output = ApiUtils.jsonDeserializeFluidStack(JSONUtils.getJsonObject(json, "result"));
-		FluidTagInput inputFluid0 = FluidTagInput.deserialize(JSONUtils.getJsonObject(json, "input"));
+		FluidStack output = ApiUtils.jsonDeserializeFluidStack(GsonHelper.getAsJsonObject(json, "result"));
+		FluidTagInput inputFluid0 = FluidTagInput.deserialize(GsonHelper.getAsJsonObject(json, "input"));
 		FluidTagInput inputFluid1 = null;
 		
 		if(json.has("secondary_input")){
-			inputFluid1 = FluidTagInput.deserialize(JSONUtils.getJsonObject(json, "secondary_input"));
+			inputFluid1 = FluidTagInput.deserialize(GsonHelper.getAsJsonObject(json, "secondary_input"));
 		}
 		
 		Tuple<ItemStack, Double> itemWithChance = DistillationRecipeBuilder.deserializeItemStackWithChance(json.get("secondary_result").getAsJsonObject());
 		
-		int energy = JSONUtils.getInt(json, "energy");
-		int time = JSONUtils.getInt(json, "time");
+		int energy = GsonHelper.getAsInt(json, "energy");
+		int time = GsonHelper.getAsInt(json, "time");
 		
 		return new SulfurRecoveryRecipe(id, output, itemWithChance.getA(), inputFluid0, inputFluid1, itemWithChance.getB(), energy, time);
 	}
 	
 	@Override
-	public SulfurRecoveryRecipe read(ResourceLocation id, PacketBuffer buffer){
-		ItemStack outputItem = buffer.readItemStack();
+	public SulfurRecoveryRecipe fromNetwork(ResourceLocation id, FriendlyByteBuf buffer){
+		ItemStack outputItem = buffer.readItem();
 		double chance = buffer.readDouble();
 		
 		FluidStack output = buffer.readFluidStack();
@@ -51,8 +50,8 @@ public class SulfurRecoveryRecipeSerializer extends IERecipeSerializer<SulfurRec
 	}
 	
 	@Override
-	public void write(PacketBuffer buffer, SulfurRecoveryRecipe recipe){
-		buffer.writeItemStack(recipe.outputItem);
+	public void toNetwork(FriendlyByteBuf buffer, SulfurRecoveryRecipe recipe){
+		buffer.writeItemStack(recipe.outputItem, false);
 		buffer.writeDouble(recipe.chance);
 		
 		buffer.writeFluidStack(recipe.output);

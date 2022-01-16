@@ -1,8 +1,5 @@
 package flaxbeard.immersivepetroleum.common.blocks.metal;
 
-import java.util.Collections;
-import java.util.List;
-
 import blusunrize.immersiveengineering.api.Lib;
 import blusunrize.immersiveengineering.common.util.ChatUtils;
 import blusunrize.immersiveengineering.common.util.Utils;
@@ -11,42 +8,43 @@ import flaxbeard.immersivepetroleum.common.IPTileTypes;
 import flaxbeard.immersivepetroleum.common.blocks.IPBlockBase;
 import flaxbeard.immersivepetroleum.common.blocks.IPBlockItemBase;
 import flaxbeard.immersivepetroleum.common.blocks.tileentities.FlarestackTileEntity;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.material.MaterialColor;
-import net.minecraft.block.material.PushReaction;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.BlockItemUseContext;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.state.BooleanProperty;
-import net.minecraft.state.StateContainer.Builder;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ActionResultType;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.Direction;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.BlockRayTraceResult;
-import net.minecraft.util.math.shapes.IBooleanFunction;
-import net.minecraft.util.math.shapes.ISelectionContext;
-import net.minecraft.util.math.shapes.VoxelShape;
-import net.minecraft.util.math.shapes.VoxelShapes;
-import net.minecraft.util.text.TranslationTextComponent;
-import net.minecraft.world.IBlockReader;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.material.Material;
+import net.minecraft.world.level.material.MaterialColor;
+import net.minecraft.world.level.material.PushReaction;
+import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.ToolType;
+
+import java.util.Collections;
+import java.util.List;
 
 public class FlarestackBlock extends IPBlockBase{
-	private static final Material material = new Material(MaterialColor.IRON, false, false, true, true, false, false, PushReaction.BLOCK);
-	
+	private static final Material material = new Material(MaterialColor.METAL, false, false, true, true, false, false, PushReaction.BLOCK);
+
 	public static final BooleanProperty SLAVE = BooleanProperty.create("slave");
 	
 	public FlarestackBlock(){
@@ -56,7 +54,7 @@ public class FlarestackBlock extends IPBlockBase{
 				.sound(SoundType.METAL)
 				.notSolid());
 		
-		setDefaultState(getStateContainer().getBaseState()
+		registerDefaultState(getStateDefinition().any()
 				.with(SLAVE, false));
 	}
 	
@@ -66,51 +64,51 @@ public class FlarestackBlock extends IPBlockBase{
 	}
 	
 	@Override
-	protected void fillStateContainer(Builder<Block, BlockState> builder){
+	protected void fillStateContainer(StateDefinition.Builder<Block, BlockState> builder){
 		builder.add(SLAVE);
 	}
 	
 	@Override
-	public int getOpacity(BlockState state, IBlockReader worldIn, BlockPos pos){
+	public int getOpacity(BlockState state, BlockGetter worldIn, BlockPos pos){
 		return 0;
 	}
 	
 	@Override
-	public boolean propagatesSkylightDown(BlockState state, IBlockReader reader, BlockPos pos){
+	public boolean propagatesSkylightDown(BlockState state, BlockGetter reader, BlockPos pos){
 		return true;
 	}
 	
 	@Override
 	@OnlyIn(Dist.CLIENT)
-	public float getAmbientOcclusionLightValue(BlockState state, IBlockReader worldIn, BlockPos pos){
+	public float getAmbientOcclusionLightValue(BlockState state, BlockGetter worldIn, BlockPos pos){
 		return 1.0F;
 	}
 	
 	@Override
-	public ActionResultType onBlockActivated(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn, BlockRayTraceResult hit){
-		if(Utils.isScrewdriver(player.getHeldItem(handIn))){
-			if(state.get(SLAVE)){
+	public InteractionResult onBlockActivated(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn, BlockHitResult hit){
+		if(Utils.isScrewdriver(player.getItemInHand(handIn))){
+			if(state.getValue(SLAVE)){
 				pos = pos.offset(Direction.DOWN);
 			}
 			
 			if(!worldIn.isRemote){
-				TileEntity te = worldIn.getTileEntity(pos);
+				BlockEntity te = worldIn.getBlockEntity(pos);
 				if(te != null && te instanceof FlarestackTileEntity){
 					FlarestackTileEntity flare = ((FlarestackTileEntity) te);
 					flare.invertRedstone();
 					
-					ChatUtils.sendServerNoSpamMessages(player, new TranslationTextComponent(Lib.CHAT_INFO + "rsControl." + (flare.isRedstoneInverted() ? "invertedOn" : "invertedOff")));
+					ChatUtils.sendServerNoSpamMessages(player, new TranslatableComponent(Lib.CHAT_INFO + "rsControl." + (flare.isRedstoneInverted() ? "invertedOn" : "invertedOff")));
 				}
 			}
 			
-			return ActionResultType.SUCCESS;
+			return InteractionResult.SUCCESS;
 		}
-		return ActionResultType.PASS;
+		return InteractionResult.PASS;
 	}
 	
 	@Override
-	public void onBlockHarvested(World worldIn, BlockPos pos, BlockState state, PlayerEntity player){
-		if(state.get(SLAVE)){
+	public void onBlockHarvested(Level worldIn, BlockPos pos, BlockState state, Player player){
+		if(state.getValue(SLAVE)){
 			worldIn.destroyBlock(pos.add(0, -1, 0), !player.isCreative());
 		}else{
 			worldIn.destroyBlock(pos.add(0, 1, 0), false);
@@ -119,23 +117,23 @@ public class FlarestackBlock extends IPBlockBase{
 	}
 	
 	@Override
-	public void onBlockPlacedBy(World worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack){
+	public void onBlockPlacedBy(Level worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack){
 		if(!worldIn.isRemote){
 			worldIn.setBlockState(pos.offset(Direction.UP), state.with(SLAVE, true));
 		}
 	}
 	
 	@Override
-	public void onEntityCollision(BlockState state, World worldIn, BlockPos pos, Entity entityIn){
-		if(state.get(SLAVE) && !entityIn.isImmuneToFire()){
+	public void onEntityCollision(BlockState state, Level worldIn, BlockPos pos, Entity entityIn){
+		if(state.getValue(SLAVE) && !entityIn.isImmuneToFire()){
 			entityIn.attackEntityFrom(DamageSource.HOT_FLOOR, 1.0F);
 		}
 	}
 	
 	@SuppressWarnings("deprecation")
 	@Override
-	public List<ItemStack> getDrops(BlockState state, net.minecraft.loot.LootContext.Builder builder){
-		if(state.get(SLAVE)){
+	public List<ItemStack> getDrops(BlockState state, LootContext.Builder builder){
+		if(state.getValue(SLAVE)){
 			// TODO Don't know how else i would do this yet
 			return Collections.emptyList();
 		}
@@ -147,20 +145,20 @@ public class FlarestackBlock extends IPBlockBase{
 	static VoxelShape SHAPE_MASTER;
 	
 	@Override
-	public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context){
-		if(state.get(SLAVE)){
+	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context){
+		if(state.getValue(SLAVE)){
 			if(SHAPE_SLAVE == null){
-				VoxelShape s0 = VoxelShapes.create(0.125, 0.0, 0.125, 0.875, 0.75, 0.875);
-				VoxelShape s1 = VoxelShapes.create(0.0625, 0.0, 0.0625, 0.9375, 0.375, 0.9375);
-				SHAPE_SLAVE = VoxelShapes.combineAndSimplify(s0, s1, IBooleanFunction.OR);
+				VoxelShape s0 = Shapes.create(0.125, 0.0, 0.125, 0.875, 0.75, 0.875);
+				VoxelShape s1 = Shapes.create(0.0625, 0.0, 0.0625, 0.9375, 0.375, 0.9375);
+				SHAPE_SLAVE = Shapes.combineAndSimplify(s0, s1, IBooleanFunction.OR);
 			}
 			
 			return SHAPE_SLAVE;
 		}else{
 			if(SHAPE_MASTER == null){
-				VoxelShape s0 = VoxelShapes.create(0.125, 0.0, 0.125, 0.875, 0.75, 0.875);
-				VoxelShape s1 = VoxelShapes.create(0.0625, 0.5, 0.0625, 0.9375, 1.0, 0.9375);
-				SHAPE_MASTER = VoxelShapes.combineAndSimplify(s0, s1, IBooleanFunction.OR);
+				VoxelShape s0 = Shapes.create(0.125, 0.0, 0.125, 0.875, 0.75, 0.875);
+				VoxelShape s1 = Shapes.create(0.0625, 0.5, 0.0625, 0.9375, 1.0, 0.9375);
+				SHAPE_MASTER = Shapes.combineAndSimplify(s0, s1, IBooleanFunction.OR);
 			}
 			
 			return SHAPE_MASTER;
@@ -169,26 +167,26 @@ public class FlarestackBlock extends IPBlockBase{
 	
 	@Override
 	public boolean hasTileEntity(BlockState state){
-		return !state.get(SLAVE);
+		return !state.getValue(SLAVE);
 	}
 	
 	@Override
-	public TileEntity createTileEntity(BlockState state, IBlockReader world){
+	public BlockEntity createTileEntity(BlockState state, BlockGetter world){
 		return IPTileTypes.FLARE.get().create();
 	}
 	
 	public static class FlarestackBlockItem extends IPBlockItemBase{
 		public FlarestackBlockItem(Block blockIn){
-			super(blockIn, new Item.Properties().group(ImmersivePetroleum.creativeTab));
+			super(blockIn, new Item.Properties().tab(ImmersivePetroleum.creativeTab));
 		}
 		
 		@Override
-		protected boolean canPlace(BlockItemUseContext con, BlockState state){
+		protected boolean canPlace(BlockPlaceContext con, BlockState state){
 			if(super.canPlace(con, state)){
 				BlockPos otherPos = con.getPos().offset(Direction.UP);
 				BlockState otherState = con.getWorld().getBlockState(otherPos);
 				
-				return otherState.getBlock().isAir(otherState, con.getWorld(), otherPos);
+				return otherState.getBlock().isAir(otherState, con.getLevel(), otherPos);
 			}
 			return false;
 		}

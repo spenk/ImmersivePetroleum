@@ -1,14 +1,5 @@
 package flaxbeard.immersivepetroleum.common.blocks.tileentities;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-import com.google.common.collect.ImmutableList;
-
 import blusunrize.immersiveengineering.ImmersiveEngineering;
 import blusunrize.immersiveengineering.api.IEEnums.IOSideConfig;
 import blusunrize.immersiveengineering.api.Lib;
@@ -18,39 +9,41 @@ import blusunrize.immersiveengineering.api.wires.Connection;
 import blusunrize.immersiveengineering.api.wires.ConnectionPoint;
 import blusunrize.immersiveengineering.api.wires.IImmersiveConnectable;
 import blusunrize.immersiveengineering.api.wires.WireType;
-import blusunrize.immersiveengineering.api.wires.impl.ImmersiveConnectableTileEntity;
+import blusunrize.immersiveengineering.api.wires.impl.ImmersiveConnectableBlockEntity;
 import blusunrize.immersiveengineering.api.wires.localhandlers.EnergyTransferHandler;
 import blusunrize.immersiveengineering.api.wires.utils.WireUtils;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces;
+import blusunrize.immersiveengineering.common.blocks.PlacementLimitation;
 import blusunrize.immersiveengineering.common.config.IEServerConfig;
-import blusunrize.immersiveengineering.common.util.EnergyHelper;
 import blusunrize.immersiveengineering.common.util.EnergyHelper.IEForgeEnergyWrapper;
 import blusunrize.immersiveengineering.common.util.IESounds;
 import blusunrize.immersiveengineering.common.util.Utils;
+import com.google.common.collect.ImmutableList;
 import flaxbeard.immersivepetroleum.api.energy.FuelHandler;
 import flaxbeard.immersivepetroleum.common.IPTileTypes;
-import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.item.ItemStack;
-import net.minecraft.loot.LootContext;
-import net.minecraft.loot.LootParameters;
-import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.NetworkManager;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.network.play.server.SUpdateTileEntityPacket;
 import net.minecraft.particles.ParticleTypes;
-import net.minecraft.tileentity.ITickableTileEntity;
-import net.minecraft.util.Direction;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.vector.Vector3d;
 import net.minecraft.util.math.vector.Vector3i;
-import net.minecraft.util.text.IFormattableTextComponent;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.fluids.FluidStack;
@@ -60,7 +53,12 @@ import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler.FluidAction;
 import net.minecraftforge.fluids.capability.templates.FluidTank;
 
-public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity implements ITickableTileEntity, IEBlockInterfaces.IDirectionalTile, IEBlockInterfaces.IPlayerInteraction, IEBlockInterfaces.IBlockOverlayText, IEBlockInterfaces.ITileDrop, IEBlockInterfaces.ISoundTile, EnergyHelper.IIEInternalFluxConnector, EnergyHelper.IIEInternalFluxHandler, EnergyTransferHandler.EnergyConnector{
+import javax.annotation.Nullable;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+
+public class GasGeneratorTileEntity extends ImmersiveConnectableBlockEntity implements IEBlockInterfaces.IDirectionalBE, IEBlockInterfaces.IPlayerInteraction, IEBlockInterfaces.IBlockOverlayText, IEBlockInterfaces.IBlockEntityDrop, IEBlockInterfaces.ISoundBE, EnergyTransferHandler.EnergyConnector{
 	public static final int FLUX_CAPACITY = 8000;
 	
 	protected WireType wireType;
@@ -69,8 +67,8 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	protected FluxStorage energyStorage = new FluxStorage(getMaxStorage(), Integer.MAX_VALUE, getMaxOutput());
 	protected FluidTank tank = new FluidTank(FLUX_CAPACITY, fluid -> (fluid != null && fluid != FluidStack.EMPTY && FuelHandler.isValidFuel(fluid.getFluid())));
 	
-	public GasGeneratorTileEntity(){
-		super(IPTileTypes.GENERATOR.get());
+	public GasGeneratorTileEntity(BlockPos pos, BlockState state){
+		super(IPTileTypes.GENERATOR.get(), pos, state);
 	}
 	
 	public int getMaxOutput(){
@@ -82,7 +80,7 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	}
 	
 	@Override
-	public void read(BlockState state, CompoundNBT nbt){
+	public void read(BlockState state, CompoundTag nbt){
 		super.read(state, nbt);
 		
 		this.isActive = nbt.getBoolean("isActive");
@@ -92,12 +90,12 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	}
 	
 	@Override
-	public CompoundNBT write(CompoundNBT compound){
-		CompoundNBT nbt = super.write(compound);
+	public CompoundTag write(CompoundTag compound){
+		CompoundTag nbt = super.write(compound);
 		
 		nbt.putBoolean("isActive", this.isActive);
-		nbt.put("tank", this.tank.writeToNBT(new CompoundNBT()));
-		nbt.put("buffer", this.energyStorage.writeToNBT(new CompoundNBT()));
+		nbt.put("tank", this.tank.writeToNBT(new CompoundTag()));
+		nbt.put("buffer", this.energyStorage.writeToNBT(new CompoundTag()));
 		
 		if(this.wireType != null){
 			nbt.putString("wiretype", this.wireType.getUniqueName());
@@ -112,13 +110,13 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	}
 	
 	@Override
-	public void handleUpdateTag(BlockState state, CompoundNBT tag){
+	public void handleUpdateTag(BlockState state, CompoundTag tag){
 		read(state, tag);
 	}
 	
 	@Override
-	public CompoundNBT getUpdateTag(){
-		return write(new CompoundNBT());
+	public CompoundTag getUpdateTag(){
+		return write(new CompoundTag());
 	}
 	
 	@Override
@@ -129,7 +127,7 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	@Override
 	public void readOnPlacement(LivingEntity placer, ItemStack stack){
 		if(stack.hasTag()){
-			CompoundNBT nbt = stack.getOrCreateTag();
+			CompoundTag nbt = stack.getOrCreateTag();
 			
 			this.tank.readFromNBT(nbt.getCompound("tank"));
 			this.energyStorage.readFromNBT(nbt.getCompound("energy"));
@@ -137,32 +135,32 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	}
 	
 	@Override
-	public void markDirty(){
-		super.markDirty();
+	public void setChanged(){
+		super.setChanged();
 		
-		BlockState state = world.getBlockState(pos);
-		world.notifyBlockUpdate(pos, state, state, 3);
-		world.notifyNeighborsOfStateChange(pos, state.getBlock());
+		BlockState state = level.getBlockState(getPosition());
+		level.notifyBlockUpdate(getPosition(), state, state, 3);
+		level.notifyNeighborsOfStateChange(getPosition(), state.getBlock());
 	}
 	
 	@Override
 	public List<ItemStack> getTileDrops(LootContext context){
 		ItemStack stack;
 		if(context != null){
-			stack = new ItemStack(context.get(LootParameters.BLOCK_STATE).getBlock());
+			stack = new ItemStack(context.get(LootContextParams.BLOCK_STATE).getBlock());
 		}else{
 			stack = new ItemStack(getBlockState().getBlock());
 		}
 		
-		CompoundNBT nbt = new CompoundNBT();
+		CompoundTag nbt = new CompoundTag();
 		
 		if(this.tank.getFluidAmount() > 0){
-			CompoundNBT tankNbt = this.tank.writeToNBT(new CompoundNBT());
+			CompoundTag tankNbt = this.tank.writeToNBT(new CompoundTag());
 			nbt.put("tank", tankNbt);
 		}
 		
 		if(this.energyStorage.getEnergyStored() > 0){
-			CompoundNBT energyNbt = this.energyStorage.writeToNBT(new CompoundNBT());
+			CompoundTag energyNbt = this.energyStorage.writeToNBT(new CompoundTag());
 			nbt.put("energy", energyNbt);
 		}
 		
@@ -245,29 +243,29 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	}
 	
 	@Override
-	public ITextComponent[] getOverlayText(PlayerEntity player, RayTraceResult mop, boolean hammer){
-		if(Utils.isFluidRelatedItemStack(player.getHeldItem(Hand.MAIN_HAND))){
-			ITextComponent s = null;
+	public Component[] getOverlayText(Player player, HitResult mop, boolean hammer){
+		if(Utils.isFluidRelatedItemStack(player.getItemInHand(InteractionHand.MAIN_HAND))){
+			Component s = null;
 			if(tank.getFluid().getAmount() > 0)
-				s = ((IFormattableTextComponent) tank.getFluid().getDisplayName()).appendString(": " + tank.getFluidAmount() + "mB");
+				s = ((MutableComponent) tank.getFluid().getDisplayName()).append(": " + tank.getFluidAmount() + "mB");
 			else
-				s = new TranslationTextComponent(Lib.GUI + "empty");
-			return new ITextComponent[]{s};
+				s = new TranslatableComponent(Lib.GUI + "empty");
+			return new Component[]{s};
 		}
 		return null;
 	}
 	
 	@Override
-	public boolean useNixieFont(PlayerEntity player, RayTraceResult mop){
+	public boolean useNixieFont(Player player, HitResult mop){
 		return false;
 	}
 	
 	@Override
-	public boolean interact(Direction side, PlayerEntity player, Hand hand, ItemStack heldItem, float hitX, float hitY, float hitZ){
+	public boolean interact(Direction side, Player player, InteractionHand hand, ItemStack heldItem, float hitX, float hitY, float hitZ){
 		if(FluidUtil.interactWithFluidHandler(player, hand, tank)){
-			markDirty();
+			setChanged();
 			return true;
-		}else if(player.isSneaking()){
+		}else if(player.isShiftKeyDown()){
 			boolean added = false;
 			if(player.inventory.getCurrentItem().isEmpty()){
 				added = true;
@@ -316,11 +314,11 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	
 	@Override
 	public void tick(){
-		if(this.world.isRemote){
+		if(this.level.isRemote){
 			ImmersiveEngineering.proxy.handleTileSound(IESounds.dieselGenerator, this, this.isActive, .3f, .75f);
-			if(this.isActive && this.world.getGameTime() % 4 == 0){
+			if(this.isActive && this.level.getGameTime() % 4 == 0){
 				Direction fl = this.facing;
-				Direction fw = this.facing.rotateY();
+				Direction fw = this.facing.getClockWise();
 				
 				Vector3i vec = fw.getOpposite().getDirectionVec();
 				
@@ -328,12 +326,12 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 				double y = this.pos.getY() + .4;
 				double z = this.pos.getZ() + .5 + (fl.getZOffset() * 2 / 16F) + (-fw.getZOffset() * .6125f);
 				
-				this.world.addParticle(this.world.rand.nextInt(10) == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.SMOKE, x, y, z, vec.getX() * 0.025, 0, vec.getZ() * 0.025);
+				this.level.addParticle(this.level.rand.nextInt(10) == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.SMOKE, x, y, z, vec.getX() * 0.025, 0, vec.getZ() * 0.025);
 			}
 		}else{
 			boolean lastActive = this.isActive;
 			this.isActive = false;
-			if(!this.world.isBlockPowered(this.pos) && this.tank.getFluid() != null){
+			if(!this.level.isBlockPowered(this.pos) && this.tank.getFluid() != null){
 				Fluid fluid = this.tank.getFluid().getFluid();
 				int amount = FuelHandler.getFuelUsedPerTick(fluid);
 				if(amount > 0 && this.tank.getFluidAmount() >= amount && this.energyStorage.receiveEnergy(FuelHandler.getFluxGeneratedPerTick(fluid), false) > 0){
@@ -342,8 +340,8 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 				}
 			}
 			
-			if(lastActive != this.isActive || (!this.world.isRemote && this.isActive)){
-				markDirty();
+			if(lastActive != this.isActive || (!this.level.isRemote && this.isActive)){
+				setChanged();
 			}
 		}
 	}
@@ -351,13 +349,13 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	@Override
 	public void connectCable(WireType cableType, ConnectionPoint target, IImmersiveConnectable other, ConnectionPoint otherTarget){
 		this.wireType = cableType;
-		markDirty();
+		setChanged();
 	}
 	
 	@Override
 	public void removeCable(@Nullable Connection connection, ConnectionPoint attachedPoint){
 		this.wireType = null;
-		markDirty();
+		setChanged();
 	}
 	
 	@Override
@@ -366,8 +364,8 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	}
 	
 	@Override
-	public boolean canConnectCable(WireType cableType, ConnectionPoint target, Vector3i offset){
-		if(world.getBlockState(target.getPosition()).getBlock() != world.getBlockState(getPos()).getBlock()){
+	public boolean canConnectCable(WireType cableType, ConnectionPoint target, Vec3i offset){
+		if(level.getBlockState(target.position()).getBlock() != level.getBlockState(getBlockPos()).getBlock()){
 			return false;
 		}
 		
@@ -376,12 +374,12 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	
 	@Override
 	public BlockPos getConnectionMaster(@Nullable WireType cableType, TargetingInfo target){
-		return pos;
+		return getBlockPos();
 	}
 	
 	@Override
-	public ConnectionPoint getTargetedPoint(TargetingInfo info, Vector3i offset){
-		return new ConnectionPoint(pos, 0);
+	public ConnectionPoint getTargetedPoint(TargetingInfo info, Vec3i offset){
+		return new ConnectionPoint(getBlockPos(), 0);
 	}
 	
 	@Override
@@ -390,9 +388,9 @@ public class GasGeneratorTileEntity extends ImmersiveConnectableTileEntity imple
 	}
 	
 	@Override
-	public Vector3d getConnectionOffset(@Nonnull Connection con, ConnectionPoint here){
+	public Vec3 getConnectionOffset(ConnectionPoint here, ConnectionPoint other, WireType type){
 		float xo = facing.getDirectionVec().getX() * .5f + .5f;
 		float zo = facing.getDirectionVec().getZ() * .5f + .5f;
-		return new Vector3d(xo, .5f, zo);
+		return new Vec3(xo, .5f, zo);
 	}
 }

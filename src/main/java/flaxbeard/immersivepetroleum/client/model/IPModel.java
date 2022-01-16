@@ -1,12 +1,12 @@
 package flaxbeard.immersivepetroleum.client.model;
 
+import net.minecraft.client.model.Model;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.resources.ResourceLocation;
+
 import java.util.function.Function;
 
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.model.Model;
-import net.minecraft.util.ResourceLocation;
-
-public abstract class IPModel extends Model{
+public abstract class IPModel extends Model {
 	public IPModel(Function<ResourceLocation, RenderType> renderTypeIn){
 		super(renderTypeIn);
 	}

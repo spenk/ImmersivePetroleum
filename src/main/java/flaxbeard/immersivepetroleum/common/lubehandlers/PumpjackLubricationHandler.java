@@ -1,9 +1,7 @@
 package flaxbeard.immersivepetroleum.common.lubehandlers;
 
-import java.util.function.Supplier;
-
-import com.mojang.blaze3d.matrix.MatrixStack;
-
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Quaternion;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.api.crafting.LubricatedHandler.ILubricationHandler;
 import flaxbeard.immersivepetroleum.client.model.IPModel;
@@ -11,44 +9,43 @@ import flaxbeard.immersivepetroleum.client.model.IPModels;
 import flaxbeard.immersivepetroleum.client.model.ModelLubricantPipes;
 import flaxbeard.immersivepetroleum.common.blocks.tileentities.AutoLubricatorTileEntity;
 import flaxbeard.immersivepetroleum.common.blocks.tileentities.PumpjackTileEntity;
-import net.minecraft.client.renderer.IRenderTypeBuffer;
-import net.minecraft.particles.ParticleTypes;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.Direction;
-import net.minecraft.util.Direction.Axis;
-import net.minecraft.util.Direction.AxisDirection;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Tuple;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.vector.Quaternion;
-import net.minecraft.util.math.vector.Vector3i;
-import net.minecraft.world.World;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
+import java.util.function.Supplier;
+
 public class PumpjackLubricationHandler implements ILubricationHandler<PumpjackTileEntity>{
-	private static Vector3i size = new Vector3i(4, 6, 3);
+	private static Vec3i size = new Vec3i(4, 6, 3);
 	
 	@Override
-	public Vector3i getStructureDimensions(){
+	public Vec3i getStructureDimensions(){
 		return size;
 	}
 	
 	@Override
-	public boolean isMachineEnabled(World world, PumpjackTileEntity mbte){
+	public boolean isMachineEnabled(Level world, PumpjackTileEntity mbte){
 		return mbte.wasActive;
 	}
 	
 	@Override
-	public TileEntity isPlacedCorrectly(World world, AutoLubricatorTileEntity lubricator, Direction facing){
-		BlockPos target = lubricator.getPos().offset(facing);
-		TileEntity te = world.getTileEntity(target);
+	public BlockEntity isPlacedCorrectly(Level world, AutoLubricatorTileEntity lubricator, Direction facing){
+		BlockPos target = lubricator.getBlockPos().offset(facing.getNormal());
+		BlockEntity te = world.getBlockEntity(target);
 		
 		if(te instanceof PumpjackTileEntity){
 			PumpjackTileEntity master = ((PumpjackTileEntity) te).master();
 			if(master != null){
 				Direction f = master.getIsMirrored() ? facing : facing.getOpposite();
-				if(master.getFacing().rotateY() == f){
+				if(master.getFacing().getClockWise() == f){
 					return master;
 				}
 			}
@@ -58,10 +55,11 @@ public class PumpjackLubricationHandler implements ILubricationHandler<PumpjackT
 	}
 	
 	@Override
-	public void lubricate(World world, int ticks, PumpjackTileEntity mbte){
-		if(!world.isRemote){
+	public void lubricate(Level world, int ticks, PumpjackTileEntity mbte){
+		if(world.isClientSide){
 			if(ticks % 4 == 0){
-				mbte.tick();
+				mbte.tickClient();
+				mbte.tickServer();
 			}
 		}else{
 			mbte.activeTicks += 1F / 4F;
@@ -69,11 +67,11 @@ public class PumpjackLubricationHandler implements ILubricationHandler<PumpjackT
 	}
 	
 	@Override
-	public void spawnLubricantParticles(World world, AutoLubricatorTileEntity lubricator, Direction facing, PumpjackTileEntity mbte){
+	public void spawnLubricantParticles(Level world, AutoLubricatorTileEntity lubricator, Direction facing, PumpjackTileEntity mbte){
 		Direction f = mbte.getIsMirrored() ? facing : facing.getOpposite();
-		float location = world.rand.nextFloat();
+		float location = world.random.nextFloat();
 		
-		boolean flip = f.getAxis() == Axis.Z ^ facing.getAxisDirection() == AxisDirection.POSITIVE ^ !mbte.getIsMirrored();
+		boolean flip = f.getAxis() == Direction.Axis.Z ^ facing.getAxisDirection() == Direction.AxisDirection.POSITIVE ^ !mbte.getIsMirrored();
 		float xO = 2.5F;
 		float zO = -.15F;
 		float yO = 2.25F;
@@ -85,19 +83,19 @@ public class PumpjackLubricationHandler implements ILubricationHandler<PumpjackT
 			
 		}
 		
-		if(facing.getAxisDirection() == AxisDirection.NEGATIVE)
+		if(facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE)
 			xO = -xO + 1;
 		if(!flip)
 			zO = -zO + 1;
 		
-		float x = lubricator.getPos().getX() + (f.getAxis() == Axis.X ? xO : zO);
-		float y = lubricator.getPos().getY() + yO;
-		float z = lubricator.getPos().getZ() + (f.getAxis() == Axis.X ? zO : xO);
+		float x = lubricator.getBlockPos().getX() + (f.getAxis() == Direction.Axis.X ? xO : zO);
+		float y = lubricator.getBlockPos().getY() + yO;
+		float z = lubricator.getBlockPos().getZ() + (f.getAxis() == Direction.Axis.X ? zO : xO);
 		
 		for(int i = 0;i < 3;i++){
-			float r1 = (world.rand.nextFloat() - .5F) * 2F;
-			float r2 = (world.rand.nextFloat() - .5F) * 2F;
-			float r3 = world.rand.nextFloat();
+			float r1 = (world.random.nextFloat() - .5F) * 2F;
+			float r2 = (world.random.nextFloat() - .5F) * 2F;
+			float r3 = world.random.nextFloat();
 			//BlockState n = Fluids.lubricant.block.getDefaultState();
 			//world.addParticle(new BlockParticleData(ParticleTypes.FALLING_DUST, n), x, y, z, r1 * 0.04F, r3 * 0.0125F, r2 * 0.025F);
 			
@@ -107,15 +105,15 @@ public class PumpjackLubricationHandler implements ILubricationHandler<PumpjackT
 	}
 	
 	@Override
-	public Tuple<BlockPos, Direction> getGhostBlockPosition(World world, PumpjackTileEntity mbte){
+	public Tuple<BlockPos, Direction> getGhostBlockPosition(Level world, PumpjackTileEntity mbte){
 		if(!mbte.isDummy()){
 			Direction mbFacing = mbte.getFacing().getOpposite();
-			BlockPos pos = mbte.getPos()
-					.offset(Direction.UP)
-					.offset(mbFacing, 4)
-					.offset(mbte.getIsMirrored() ? mbFacing.rotateY() : mbFacing.rotateYCCW(), 2);
+			BlockPos pos = mbte.getBlockPos()
+					.relative(Direction.UP)
+					.relative(mbFacing, 4)
+					.relative(mbte.getIsMirrored() ? mbFacing.getClockWise() : mbFacing.getCounterClockWise(), 2);
 			
-			Direction f = (mbte.getIsMirrored() ? mbte.getFacing().getOpposite() : mbte.getFacing()).rotateYCCW();
+			Direction f = (mbte.getIsMirrored() ? mbte.getFacing().getOpposite() : mbte.getFacing()).getCounterClockWise();
 			return new Tuple<BlockPos, Direction>(pos, f);
 		}
 		return null;
@@ -131,34 +129,30 @@ public class PumpjackLubricationHandler implements ILubricationHandler<PumpjackT
 	
 	@Override
 	@OnlyIn(Dist.CLIENT)
-	public void renderPipes(AutoLubricatorTileEntity lubricator, PumpjackTileEntity mbte, MatrixStack matrix, IRenderTypeBuffer buffer, int combinedLight, int combinedOverlay){
+	public void renderPipes(AutoLubricatorTileEntity lubricator, PumpjackTileEntity mbte, PoseStack matrix, MultiBufferSource buffer, int combinedLight, int combinedOverlay){
 		matrix.translate(0, -1, 0);
-		Vector3i offset = mbte.getPos().subtract(lubricator.getPos());
+		Vec3i offset = mbte.getBlockPos().subtract(lubricator.getBlockPos());
 		matrix.translate(offset.getX(), offset.getY(), offset.getZ());
 		
 		Direction rotation = mbte.getFacing();
-		switch(rotation){
-			case NORTH:{
-				matrix.rotate(new Quaternion(0, 90F, 0, true));
+		switch (rotation) {
+			case NORTH -> {
+				matrix.mulPose(new Quaternion(0, 90F, 0, true));
 				matrix.translate(-6, 1, -1);
-				break;
 			}
-			case SOUTH:{
-				matrix.rotate(new Quaternion(0, 270F, 0, true));
+			case SOUTH -> {
+				matrix.mulPose(new Quaternion(0, 270F, 0, true));
 				matrix.translate(-5, 1, -2);
-				break;
 			}
-			case EAST:{
+			case EAST -> {
 				matrix.translate(-5, 1, -1);
-				break;
 			}
-			case WEST:{
-				matrix.rotate(new Quaternion(0, 180F, 0, true));
+			case WEST -> {
+				matrix.mulPose(new Quaternion(0, 180F, 0, true));
 				matrix.translate(-6, 1, -2);
-				break;
 			}
-			default:
-				break;
+			default -> {
+			}
 		}
 		
 		IPModel model;
@@ -175,7 +169,7 @@ public class PumpjackLubricationHandler implements ILubricationHandler<PumpjackT
 		}
 		
 		if(model != null){
-			model.render(matrix, buffer.getBuffer(model.getRenderType(TEXTURE)), combinedLight, combinedOverlay, 1.0F, 1.0F, 1.0F, 1.0F);
+			model.renderToBuffer(matrix, buffer.getBuffer(model.renderType(TEXTURE)), combinedLight, combinedOverlay, 1.0F, 1.0F, 1.0F, 1.0F);
 		}
 	}
 }

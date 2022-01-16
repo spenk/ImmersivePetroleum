@@ -1,47 +1,43 @@
 package flaxbeard.immersivepetroleum.common.blocks.tileentities;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-import org.apache.commons.lang3.tuple.Pair;
-
-import com.google.common.collect.ImmutableSet;
-
 import blusunrize.immersiveengineering.api.utils.shapes.CachedShapesWithTransform;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IBlockBounds;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IInteractionObjectIE;
-import blusunrize.immersiveengineering.common.blocks.generic.PoweredMultiblockTileEntity;
+import blusunrize.immersiveengineering.common.blocks.generic.PoweredMultiblockBlockEntity;
+import blusunrize.immersiveengineering.common.blocks.multiblocks.process.MultiblockProcess;
+import blusunrize.immersiveengineering.common.blocks.multiblocks.process.MultiblockProcessInMachine;
+import blusunrize.immersiveengineering.common.register.IEContainerTypes;
 import blusunrize.immersiveengineering.common.util.Utils;
 import blusunrize.immersiveengineering.common.util.inventory.IEInventoryHandler;
+import blusunrize.immersiveengineering.common.util.orientation.RelativeBlockFace;
+import com.google.common.collect.ImmutableSet;
+import com.mojang.datafixers.util.Pair;
+import com.mojang.math.Vector3d;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.api.crafting.CokerUnitRecipe;
 import flaxbeard.immersivepetroleum.common.IPTileTypes;
 import flaxbeard.immersivepetroleum.common.multiblocks.CokerUnitMultiblock;
 import flaxbeard.immersivepetroleum.common.util.FluidHelper;
-import net.minecraft.entity.item.ItemEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.ItemStackHelper;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.particles.ParticleTypes;
-import net.minecraft.tileentity.TileEntityType;
-import net.minecraft.util.Direction;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.ResourceLocationException;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.shapes.ISelectionContext;
-import net.minecraft.util.math.shapes.VoxelShape;
-import net.minecraft.util.math.vector.Vector3d;
-import net.minecraft.world.World;
+import net.minecraft.ResourceLocationException;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.NonNullList;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.Constants.NBT;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
@@ -52,7 +48,13 @@ import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 
-public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTileEntity, CokerUnitRecipe> implements IInteractionObjectIE, IBlockBounds{
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+public class CokerUnitTileEntity extends PoweredMultiblockBlockEntity<CokerUnitTileEntity, CokerUnitRecipe> implements IInteractionObjectIE<CokerUnitTileEntity>, IBlockBounds {
 	public enum Inventory{
 		/** Inventory Item Input */
 		INPUT,
@@ -98,7 +100,11 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 	public static final BlockPos Item_IN = new BlockPos(4, 0, 0);
 	
 	/** Template-Location of the Energy Input Ports.<br><pre>1 1 0<br>2 1 0<br>3 1 0</pre><br> */
-	public static final Set<BlockPos> Energy_IN = ImmutableSet.of(new BlockPos(1, 1, 0), new BlockPos(2, 1, 0), new BlockPos(3, 1, 0));
+	public static final Set<MultiblockFace> Energy_IN = ImmutableSet.of(
+			new MultiblockFace(1, 1, 0, RelativeBlockFace.UP),
+			new MultiblockFace(2, 1, 0, RelativeBlockFace.UP),
+			new MultiblockFace(3, 1, 0, RelativeBlockFace.UP)
+	);
 	
 	/** Template-Location of the Redstone Input Port. (6 1 4)<br> */
 	public static final Set<BlockPos> Redstone_IN = ImmutableSet.of(new BlockPos(6, 1, 4));
@@ -106,17 +112,17 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 	public final NonNullList<ItemStack> inventory = NonNullList.withSize(Inventory.values().length, ItemStack.EMPTY);
 	public final FluidTank[] bufferTanks = {new FluidTank(16000), new FluidTank(16000)};
 	public final CokingChamber[] chambers = {new CokingChamber(64, 8000), new CokingChamber(64, 8000)};
-	public CokerUnitTileEntity(){
-		super(CokerUnitMultiblock.INSTANCE, 24000, true, null);
+	public CokerUnitTileEntity(BlockEntityType<CokerUnitTileEntity> type, BlockPos pos, BlockState state){
+		super(CokerUnitMultiblock.INSTANCE, 24000, true, type, pos, state);
 	}
 	
 	@Override
-	public TileEntityType<?> getType(){
-		return IPTileTypes.COKER.get();
+	public BlockEntityType<?> getType(){
+		return IPTileTypes.COKER.master();
 	}
 	
 	@Override
-	public void readCustomNBT(CompoundNBT nbt, boolean descPacket){
+	public void readCustomNBT(CompoundTag nbt, boolean descPacket){
 		super.readCustomNBT(nbt, descPacket);
 		
 		this.bufferTanks[TANK_INPUT].readFromNBT(nbt.getCompound("tank0"));
@@ -131,23 +137,23 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 	}
 	
 	@Override
-	public void writeCustomNBT(CompoundNBT nbt, boolean descPacket){
+	public void writeCustomNBT(CompoundTag nbt, boolean descPacket){
 		super.writeCustomNBT(nbt, descPacket);
 		
-		nbt.put("tank0", this.bufferTanks[TANK_INPUT].writeToNBT(new CompoundNBT()));
-		nbt.put("tank1", this.bufferTanks[TANK_OUTPUT].writeToNBT(new CompoundNBT()));
+		nbt.put("tank0", this.bufferTanks[TANK_INPUT].writeToNBT(new CompoundTag()));
+		nbt.put("tank1", this.bufferTanks[TANK_OUTPUT].writeToNBT(new CompoundTag()));
 		
-		nbt.put("chamber0", this.chambers[CHAMBER_A].writeToNBT(new CompoundNBT()));
-		nbt.put("chamber1", this.chambers[CHAMBER_B].writeToNBT(new CompoundNBT()));
+		nbt.put("chamber0", this.chambers[CHAMBER_A].writeToNBT(new CompoundTag()));
+		nbt.put("chamber1", this.chambers[CHAMBER_B].writeToNBT(new CompoundTag()));
 		
 		if(!descPacket){
 			nbt.put("inventory", writeInventory(this.inventory));
 		}
 	}
 	
-	protected void readInventory(CompoundNBT nbt){
+	protected void readInventory(CompoundTag nbt){
 		NonNullList<ItemStack> list = NonNullList.create();
-		ItemStackHelper.loadAllItems(nbt, list);
+		ContainerHelper.loadAllItems(nbt, list);
 		
 		for(int i = 0;i < this.inventory.size();i++){
 			ItemStack stack = ItemStack.EMPTY;
@@ -159,8 +165,8 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 		}
 	}
 	
-	protected CompoundNBT writeInventory(NonNullList<ItemStack> list){
-		return ItemStackHelper.saveAllItems(new CompoundNBT(), list);
+	protected CompoundTag writeInventory(NonNullList<ItemStack> list){
+		return ContainerHelper.saveAllItems(new CompoundTag(), list);
 	}
 	
 	@Override
@@ -241,7 +247,7 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 			return;
 		}
 		
-		if(this.world.isRemote){
+		if(!this.level.isClientSide){
 			boolean debug = false;
 			for(int i = 0;i < this.chambers.length;i++){
 				if(debug || this.chambers[i].getState() == CokingState.DUMPING){
@@ -253,7 +259,7 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 						double rdx = (Math.random() - 0.5) * 0.05;
 						double rdy = (Math.random() - 0.5) * 0.05;
 						
-						world.addParticle(ParticleTypes.SMOKE,
+						level.addParticle(ParticleTypes.SMOKE,
 								origin.x + rX, origin.y, origin.z + rY,
 								rdx, -(Math.random() * 0.06 + 0.11), rdy);
 					}
@@ -353,7 +359,7 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 			}
 			
 			BlockPos outPos = getBlockPosForPos(Fluid_OUT).offset(getFacing().getOpposite());
-			update |= FluidUtil.getFluidHandler(this.world, outPos, getFacing()).map(out -> {
+			update |= FluidUtil.getFluidHandler(this.level, outPos, getFacing()).map(out -> {
 				if(this.bufferTanks[TANK_OUTPUT].getFluidAmount() > 0){
 					FluidStack fs = FluidHelper.copyFluid(this.bufferTanks[TANK_OUTPUT].getFluid(), 1000);
 					int accepted = out.fill(fs, FluidAction.SIMULATE);
@@ -381,7 +387,7 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 		
 		ItemStack stack = getInventory(Inventory.INPUT);
 		if(!stack.isEmpty()){
-			int compared = MathHelper.clamp(MathHelper.floor(stack.getCount() / (float) Math.min(getSlotLimit(Inventory.INPUT.id()), stack.getMaxStackSize()) * 15), 0, 15);
+			int compared = Mth.clamp(Mth.floor(stack.getCount() / (float) Math.min(getSlotLimit(Inventory.INPUT.id()), stack.getMaxStackSize()) * 15), 0, 15);
 			if(compared != lastCompared){
 				lastCompared = compared;
 				update = true;
@@ -394,7 +400,7 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 		if(update){
 			getRedstonePos().forEach(pos -> {
 				BlockPos p = getBlockPosForPos(pos);
-				world.notifyNeighborsOfStateChange(p, world.getBlockState(p).getBlock());
+				level.notifyNeighborsOfStateChange(p, level.getBlockState(p).getBlock());
 			});
 		}
 	}
@@ -440,7 +446,7 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 	}
 	
 	@Override
-	public Set<BlockPos> getEnergyPos(){
+	public Set<MultiblockFace> getEnergyPos(){
 		return Energy_IN;
 	}
 	
@@ -502,14 +508,21 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 	public int getComparatedSize(){
 		return 1;
 	}
-	
+
+	//TODO
 	@Override
-	public IInteractionObjectIE getGuiMaster(){
+	public CokerUnitTileEntity getGuiMaster(){
 		return master();
 	}
-	
+
+	//TODO
 	@Override
-	public boolean canUseGui(PlayerEntity player){
+	public IEContainerTypes.BEContainer<? super CokerUnitTileEntity, ?> getContainerType() {
+		return null;
+	}
+
+	@Override
+	public boolean canUseGui(Player player) {
 		return this.formed;
 	}
 	
@@ -544,7 +557,7 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 	private static CachedShapesWithTransform<BlockPos, Pair<Direction, Boolean>> SHAPES = CachedShapesWithTransform.createForMultiblock(CokerUnitTileEntity::getShape);
 	public static boolean updateShapes = false;
 	@Override
-	public VoxelShape getBlockBounds(ISelectionContext ctx){
+	public VoxelShape getBlockBounds(@Nullable CollisionContext ctx){
 		if(updateShapes){
 			updateShapes = false;
 			SHAPES = CachedShapesWithTransform.createForMultiblock(CokerUnitTileEntity::getShape);
@@ -553,62 +566,62 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 		return SHAPES.get(this.posInMultiblock, Pair.of(getFacing(), getIsMirrored()));
 	}
 	
-	private static List<AxisAlignedBB> getShape(BlockPos posInMultiblock){
+	private static List<AABB> getShape(BlockPos posInMultiblock){
 		int bX = posInMultiblock.getX();
 		int bY = posInMultiblock.getY();
 		int bZ = posInMultiblock.getZ();
 		
-		List<AxisAlignedBB> main = new ArrayList<>();
+		List<AABB> main = new ArrayList<>();
 		
 		// Beams
 		if(bY >= 3 && bY <= 12){
 			// Vertical Corners
 			if(bX == 0 && bZ == 0){
-				main.add(new AxisAlignedBB(0.125, 0.0, 0.125, 0.375, 1.0, 0.375)); // Corner Beam -X-Z
+				main.add(new AABB(0.125, 0.0, 0.125, 0.375, 1.0, 0.375)); // Corner Beam -X-Z
 			}else if(bX == 0 && bZ == 4){
-				main.add(new AxisAlignedBB(0.125, 0.0, 0.625, 0.375, 1.0, 0.875)); // Corner Beam -X+Z
+				main.add(new AABB(0.125, 0.0, 0.625, 0.375, 1.0, 0.875)); // Corner Beam -X+Z
 			}else if(bX == 8 && bZ == 0){
-				main.add(new AxisAlignedBB(0.625, 0.0, 0.125, 0.875, 1.0, 0.375)); // Corner Beam +X-Z
+				main.add(new AABB(0.625, 0.0, 0.125, 0.875, 1.0, 0.375)); // Corner Beam +X-Z
 			}else if(bX == 8 && bZ == 4){
-				main.add(new AxisAlignedBB(0.625, 0.0, 0.625, 0.875, 1.0, 0.875)); // Corner Beam +X+Z
+				main.add(new AABB(0.625, 0.0, 0.625, 0.875, 1.0, 0.875)); // Corner Beam +X+Z
 			}
 			
 			// Vertical Center
 			if(bX == 4 && bZ == 4){
-				main.add(new AxisAlignedBB(0.375, 0.0, 0.625, 0.625, 1.0, 0.875)); // Center Beam +Z
+				main.add(new AABB(0.375, 0.0, 0.625, 0.625, 1.0, 0.875)); // Center Beam +Z
 			}else if(bY >= 4 && bX == 4 && bZ == 0){
-				main.add(new AxisAlignedBB(0.375, 0.0, 0.125, 0.625, 1.0, 0.375)); // Center Beam -Z
+				main.add(new AABB(0.375, 0.0, 0.125, 0.625, 1.0, 0.375)); // Center Beam -Z
 			}
 			
 			// Horiontal
 			if(bY == 5 || bY == 10){
 				if(bX > 0 && bX < 8){
 					if(bZ == 0){
-						main.add(new AxisAlignedBB(0.0, 0.125, 0.125, 1.0, 0.375, 0.375)); // Horizontal Beam -Z
+						main.add(new AABB(0.0, 0.125, 0.125, 1.0, 0.375, 0.375)); // Horizontal Beam -Z
 					}else if(bZ == 4){
-						main.add(new AxisAlignedBB(0.0, 0.125, 0.625, 1.0, 0.375, 0.875)); // Horizontal Beam +Z
+						main.add(new AABB(0.0, 0.125, 0.625, 1.0, 0.375, 0.875)); // Horizontal Beam +Z
 					}
 				}else{
 					if(bX == 0 && bZ == 0){
-						main.add(new AxisAlignedBB(0.125, 0.125, 0.125, 0.375, 0.375, 1.0)); // Beam Intersection -X
-						main.add(new AxisAlignedBB(0.125, 0.125, 0.125, 1.0, 0.375, 0.375)); // Beam Intersection -Z
+						main.add(new AABB(0.125, 0.125, 0.125, 0.375, 0.375, 1.0)); // Beam Intersection -X
+						main.add(new AABB(0.125, 0.125, 0.125, 1.0, 0.375, 0.375)); // Beam Intersection -Z
 					}else if(bX == 0 && bZ == 4){
-						main.add(new AxisAlignedBB(0.125, 0.125, 0.125, 0.375, 0.375, 0.875)); // Beam Intersection -X
-						main.add(new AxisAlignedBB(0.125, 0.125, 0.625, 1.0, 0.375, 0.875)); // Beam Intersection +Z
+						main.add(new AABB(0.125, 0.125, 0.125, 0.375, 0.375, 0.875)); // Beam Intersection -X
+						main.add(new AABB(0.125, 0.125, 0.625, 1.0, 0.375, 0.875)); // Beam Intersection +Z
 					}else if(bX == 8 && bZ == 0){
-						main.add(new AxisAlignedBB(0.625, 0.125, 0.125, 0.875, 0.375, 1.0)); // Beam Intersection +X
-						main.add(new AxisAlignedBB(0.125, 0.125, 0.125, 0.875, 0.375, 0.375)); // Beam Intersection -Z
+						main.add(new AABB(0.625, 0.125, 0.125, 0.875, 0.375, 1.0)); // Beam Intersection +X
+						main.add(new AABB(0.125, 0.125, 0.125, 0.875, 0.375, 0.375)); // Beam Intersection -Z
 					}else if(bX == 8 && bZ == 4){
-						main.add(new AxisAlignedBB(0.0, 0.125, 0.625, 0.875, 0.375, 0.875)); // Beam Intersection +Z
-						main.add(new AxisAlignedBB(0.625, 0.125, 0.0, 0.875, 0.375, 0.875)); // Beam Intersection +X
+						main.add(new AABB(0.0, 0.125, 0.625, 0.875, 0.375, 0.875)); // Beam Intersection +Z
+						main.add(new AABB(0.625, 0.125, 0.0, 0.875, 0.375, 0.875)); // Beam Intersection +X
 					}
 					
 					if(bX == 0 && (bZ == 1 || bZ == 3)){
-						main.add(new AxisAlignedBB(0.125, 0.125, 0.0, 0.375, 0.375, 1.0)); // Horizontal Beam -X
+						main.add(new AABB(0.125, 0.125, 0.0, 0.375, 0.375, 1.0)); // Horizontal Beam -X
 					}
 					
 					if(bX == 8 && (bZ > 0 && bZ < 4)){
-						main.add(new AxisAlignedBB(0.625, 0.125, 0.0, 0.875, 0.375, 1.0)); // Horizontal Beam +X
+						main.add(new AABB(0.625, 0.125, 0.0, 0.875, 0.375, 1.0)); // Horizontal Beam +X
 					}
 				}
 			}
@@ -617,86 +630,86 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 		// Ground layer slabs
 		if(bY == 0){
 			if((bZ == 1 || bZ == 3) || ((bX == 5 || bX == 7) && bZ == 0) || ((bX == 1 || (bX >= 5 && bX <= 7)) && bZ == 4)){
-				main.add(new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 0.5, 1.0));
+				main.add(new AABB(0.0, 0.0, 0.0, 1.0, 0.5, 1.0));
 			}
 		}
 		
 		// Fluid output box bottom
 		if(bY == 0 && bZ == 4 && (bX == 2 || bX == 3)){
-			main.add(new AxisAlignedBB(0.0, 0.0, -0.25, 1.0, 1.0, 1.0));
+			main.add(new AABB(0.0, 0.0, -0.25, 1.0, 1.0, 1.0));
 		}
 		// Fluid output box top
 		if(bY == 1 && bZ == 4 && (bX == 2 || bX == 3)){
-			main.add(new AxisAlignedBB(0.0, 0.0, -0.25, 1.0, 0.625, 1.0));
+			main.add(new AABB(0.0, 0.0, -0.25, 1.0, 0.625, 1.0));
 		}
 		
 		// Redstone Controller
 		if(bY == 0 && bX == 6 && bZ == 4){
-			main.add(new AxisAlignedBB(0.75, 0.5, 0.625, 0.875, 1.0, 0.875));
-			main.add(new AxisAlignedBB(0.125, 0.5, 0.625, 0.25, 1.0, 0.875));
+			main.add(new AABB(0.75, 0.5, 0.625, 0.875, 1.0, 0.875));
+			main.add(new AABB(0.125, 0.5, 0.625, 0.25, 1.0, 0.875));
 		}else if(bY == 1 && bX == 6 && bZ == 4){
-			main.add(new AxisAlignedBB(0.0, 0.0, 0.5, 1.0, 1.0, 1.0));
+			main.add(new AABB(0.0, 0.0, 0.5, 1.0, 1.0, 1.0));
 		}
 		
 		// Power Sockets
 		if(bY == 1 && bZ == 0 && (bX>=1 && bX<=3)){
-			main.add(new AxisAlignedBB(0.0, 0.0, 0.25, 1.0, 1.0, 1.25));
-			main.add(new AxisAlignedBB(0.25, 0.25, 0.0, 0.75, 0.75, 0.5));
+			main.add(new AABB(0.0, 0.0, 0.25, 1.0, 1.0, 1.25));
+			main.add(new AABB(0.25, 0.25, 0.0, 0.75, 0.75, 0.5));
 		}
 		if(bY == 0 && bZ == 0 && (bX>=1 && bX<=3)){
-			main.add(new AxisAlignedBB(0.0, 0.0, 0.25, 1.0, 1.0, 1.25));
+			main.add(new AABB(0.0, 0.0, 0.25, 1.0, 1.0, 1.25));
 		}
 		
 		// Slopes
 		if(bY == 3){
 			if(bZ == 0){
 				if(bX == 3){
-					main.add(new AxisAlignedBB(0.0, 0.0, 0.0625, 0.25, 0.25, 1.0));
-					main.add(new AxisAlignedBB(0.25, 0.0, 0.0625, 0.5, 0.5, 1.0));
-					main.add(new AxisAlignedBB(0.50, 0.0, 0.0625, 0.75, 0.75, 1.0));
-					main.add(new AxisAlignedBB(0.75, 0.0, 0.0625, 1.0, 1.0, 1.0));
+					main.add(new AABB(0.0, 0.0, 0.0625, 0.25, 0.25, 1.0));
+					main.add(new AABB(0.25, 0.0, 0.0625, 0.5, 0.5, 1.0));
+					main.add(new AABB(0.50, 0.0, 0.0625, 0.75, 0.75, 1.0));
+					main.add(new AABB(0.75, 0.0, 0.0625, 1.0, 1.0, 1.0));
 				}
 				if(bX == 4){
-					main.add(new AxisAlignedBB(0.0, 0.0, 0.0625, 1.0, 1.0, 1.0));
+					main.add(new AABB(0.0, 0.0, 0.0625, 1.0, 1.0, 1.0));
 				}
 				if(bX == 5){
-					main.add(new AxisAlignedBB(0.0, 0.0, 0.0625, 0.25, 1.0, 1.0));
-					main.add(new AxisAlignedBB(0.25, 0.0, 0.0625, 0.5, 0.75, 1.0));
-					main.add(new AxisAlignedBB(0.50, 0.0, 0.0625, 0.75, 0.5, 1.0));
-					main.add(new AxisAlignedBB(0.75, 0.0, 0.0625, 1.0, 0.25, 1.0));
+					main.add(new AABB(0.0, 0.0, 0.0625, 0.25, 1.0, 1.0));
+					main.add(new AABB(0.25, 0.0, 0.0625, 0.5, 0.75, 1.0));
+					main.add(new AABB(0.50, 0.0, 0.0625, 0.75, 0.5, 1.0));
+					main.add(new AABB(0.75, 0.0, 0.0625, 1.0, 0.25, 1.0));
 				}
 			}else if(bX == 4 && bZ == 3){
-				main.add(new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 1.0, 0.25));
-				main.add(new AxisAlignedBB(0.0, 0.0, 0.25, 1.0, 0.75, 0.5));
-				main.add(new AxisAlignedBB(0.0, 0.0, 0.5, 1.0, 0.5, 0.75));
-				main.add(new AxisAlignedBB(0.0, 0.0, 0.75, 1.0, 0.25, 1.0));
+				main.add(new AABB(0.0, 0.0, 0.0, 1.0, 1.0, 0.25));
+				main.add(new AABB(0.0, 0.0, 0.25, 1.0, 0.75, 0.5));
+				main.add(new AABB(0.0, 0.0, 0.5, 1.0, 0.5, 0.75));
+				main.add(new AABB(0.0, 0.0, 0.75, 1.0, 0.25, 1.0));
 			}
 		}
 		
 		// First and Second Platform Shape
 		if((bY == 7 || bY == 12) && !(bX == 0 && bZ == 2)){
 			if(!(bX > 0 && bX < 8 && bZ > 0 && bZ < 4) || (bX==4 && bZ>=1 && bZ<=3)){
-				main.add(new AxisAlignedBB(0.0, 0.5, 0.0, 1.0, 1.0, 1.0));
+				main.add(new AABB(0.0, 0.5, 0.0, 1.0, 1.0, 1.0));
 			}
 		}
 		
 		// Top Platform
 		if(bY == 17){
 			if((bX >= 1 && bX <= 7) && (bZ == 1 || bZ == 3) || (bX == 7 && bZ == 2)){
-				main.add(new AxisAlignedBB(0.0, 0.5, 0.0, 1.0, 1.0, 1.0));
+				main.add(new AABB(0.0, 0.5, 0.0, 1.0, 1.0, 1.0));
 			}
 		}
 		
 		// Primary Ladder
 		if(bX == 0 && bZ == 2){
 			if(bY >= 3 && bY <= 12){
-				main.add(new AxisAlignedBB(1.005, 0.0, 0.125, 1.005, 1.0, 0.875));
+				main.add(new AABB(1.005, 0.0, 0.125, 1.005, 1.0, 0.875));
 				
 				if(bY >= 5){
-					main.add(new AxisAlignedBB(0.0, 0.0, 0.0, 0.0625, 1.0, 1.0));
+					main.add(new AABB(0.0, 0.0, 0.0, 0.0625, 1.0, 1.0));
 					if(!(bY==8 || bY==9)){
-						main.add(new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 1.0, 0.0625));
-						main.add(new AxisAlignedBB(0.0, 0.0, 0.9375, 1.0, 1.0, 1.0));
+						main.add(new AABB(0.0, 0.0, 0.0, 1.0, 1.0, 0.0625));
+						main.add(new AABB(0.0, 0.0, 0.9375, 1.0, 1.0, 1.0));
 					}
 				}
 			}
@@ -705,12 +718,12 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 		// Secondary Ladder
 		if(bX == 1 && bZ == 2){
 			if(bY >= 13 && bY <= 17){
-				main.add(new AxisAlignedBB(0.875, 0.0, 0.125, 0.9375, 1.0, 0.875));
+				main.add(new AABB(0.875, 0.0, 0.125, 0.9375, 1.0, 0.875));
 				
 				if(bY >= 15){ // Cage
-					main.add(new AxisAlignedBB(0.0, 0.0, 0.0, 0.0625, 1.0, 1.0));
-					main.add(new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 1.0, 0.0625));
-					main.add(new AxisAlignedBB(0.0, 0.0, 0.9375, 1.0, 1.0, 1.0));
+					main.add(new AABB(0.0, 0.0, 0.0, 0.0625, 1.0, 1.0));
+					main.add(new AABB(0.0, 0.0, 0.0, 1.0, 1.0, 0.0625));
+					main.add(new AABB(0.0, 0.0, 0.9375, 1.0, 1.0, 1.0));
 				}
 			}
 		}
@@ -719,34 +732,34 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 		{
 			if(bX == 2 && bZ == 4){
 				if(bY == 1){
-					main.add(new AxisAlignedBB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75)); // Pipe Y
-					main.add(new AxisAlignedBB(0.125, 0.875, 0.875, 0.875, 1.0, 0.125)); // Pipe Connector +Y
+					main.add(new AABB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75)); // Pipe Y
+					main.add(new AABB(0.125, 0.875, 0.875, 0.875, 1.0, 0.125)); // Pipe Connector +Y
 				}
 				if(bY >= 3 && bY <= 6){
-					main.add(new AxisAlignedBB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75)); // Pipe Y
+					main.add(new AABB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75)); // Pipe Y
 					if(bY==3 || bY==5 || bY==6){
-						main.add(new AxisAlignedBB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
+						main.add(new AABB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
 					}
 					if(bY==4 || bY==5 || bY==6){
-						main.add(new AxisAlignedBB(0.125, 0.875, 0.875, 0.875, 1.0, 0.125)); // Pipe Connector +Y
+						main.add(new AABB(0.125, 0.875, 0.875, 0.875, 1.0, 0.125)); // Pipe Connector +Y
 					}
 				}
 			}
 			
 			if(bX == 6 && bZ == 0){
 				if(bY >= 1 && bY <= 6 && bY != 2){
-					main.add(new AxisAlignedBB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75)); // Pipe Y
+					main.add(new AABB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75)); // Pipe Y
 				}
 				
 				if(bY == 1){
-					main.add(new AxisAlignedBB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
-					main.add(new AxisAlignedBB(0.125, 0.875, 0.875, 0.875, 1.0, 0.125)); // Pipe Connector +Y
+					main.add(new AABB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
+					main.add(new AABB(0.125, 0.875, 0.875, 0.875, 1.0, 0.125)); // Pipe Connector +Y
 				}
 				if(bY == 3){
-					main.add(new AxisAlignedBB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
+					main.add(new AABB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
 				}
 				if(bY == 6){
-					main.add(new AxisAlignedBB(0.125, 0.875, 0.875, 0.875, 1.0, 0.125)); // Pipe Connector +Y
+					main.add(new AABB(0.125, 0.875, 0.875, 0.875, 1.0, 0.125)); // Pipe Connector +Y
 				}
 			}
 			
@@ -755,66 +768,66 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 				switch(bX){
 					case 2:{
 						if(bZ == 4){
-							main.add(new AxisAlignedBB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
-							main.add(new AxisAlignedBB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
-							main.add(new AxisAlignedBB(0.25, 0.125, 0.75, 0.875, 0.875, 0.25)); // Pipe Bend -Y +X
+							main.add(new AABB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
+							main.add(new AABB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
+							main.add(new AABB(0.25, 0.125, 0.75, 0.875, 0.875, 0.25)); // Pipe Bend -Y +X
 						}
 						break;
 					}
 					case 3:{
 						if(bZ == 4){
-							main.add(new AxisAlignedBB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
-							main.add(new AxisAlignedBB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
+							main.add(new AABB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
+							main.add(new AABB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
 						}
 						break;
 					}
 					case 4:{
 						if(bZ == 4){
-							main.add(new AxisAlignedBB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
+							main.add(new AABB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
 						}
 						break;
 					}
 					case 5:{
 						if(bZ == 4){
-							main.add(new AxisAlignedBB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
-							main.add(new AxisAlignedBB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
+							main.add(new AABB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
+							main.add(new AABB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
 						}
 						break;
 					}
 					case 6:{
 						if(bZ == 0){
-							main.add(new AxisAlignedBB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
-							main.add(new AxisAlignedBB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
-							main.add(new AxisAlignedBB(0.25, 0.125, 0.75, 0.875, 0.75, 0.25)); // Pipe Bend 					
+							main.add(new AABB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
+							main.add(new AABB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
+							main.add(new AABB(0.25, 0.125, 0.75, 0.875, 0.75, 0.25)); // Pipe Bend
 						}else if(bZ == 4){
-							main.add(new AxisAlignedBB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
-							main.add(new AxisAlignedBB(0.125, 0.25, 0.75, 0.75, 0.75, 0.125)); // Pipe Bend -X -Z
+							main.add(new AABB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
+							main.add(new AABB(0.125, 0.25, 0.75, 0.75, 0.75, 0.125)); // Pipe Bend -X -Z
 						}
 						break;
 					}
 					case 7:{
 						if(bZ == 0){
-							main.add(new AxisAlignedBB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
-							main.add(new AxisAlignedBB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
-							main.add(new AxisAlignedBB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
+							main.add(new AABB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
+							main.add(new AABB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
+							main.add(new AABB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
 						}
 						break;
 					}
 					case 8:{
 						if(bZ == 0){
-							main.add(new AxisAlignedBB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
-							main.add(new AxisAlignedBB(0.125, 0.125, 0.875, 0.875, 0.875, 1.0)); // Pipe Connector +Z
-							main.add(new AxisAlignedBB(0.625, 0.0, 0.125, 0.875, 1.0, 0.375)); // Vertical Corner Beam +X-Z
-							main.add(new AxisAlignedBB(0.125, 0.25, 0.875, 0.75, 0.75, 0.25)); // Pipe Bend -X +Z
+							main.add(new AABB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
+							main.add(new AABB(0.125, 0.125, 0.875, 0.875, 0.875, 1.0)); // Pipe Connector +Z
+							main.add(new AABB(0.625, 0.0, 0.125, 0.875, 1.0, 0.375)); // Vertical Corner Beam +X-Z
+							main.add(new AABB(0.125, 0.25, 0.875, 0.75, 0.75, 0.25)); // Pipe Bend -X +Z
 						}else if(bZ == 1){
-							main.add(new AxisAlignedBB(0.125, 0.125, 0.125, 0.875, 0.875, 0.0)); // Pipe Connector -Z
-							main.add(new AxisAlignedBB(0.125, 0.125, 0.875, 0.875, 0.875, 1.0)); // Pipe Connector +Z
-							main.add(new AxisAlignedBB(0.25, 0.25, 0.0, 0.75, 0.75, 1.0)); // Pipe X
+							main.add(new AABB(0.125, 0.125, 0.125, 0.875, 0.875, 0.0)); // Pipe Connector -Z
+							main.add(new AABB(0.125, 0.125, 0.875, 0.875, 0.875, 1.0)); // Pipe Connector +Z
+							main.add(new AABB(0.25, 0.25, 0.0, 0.75, 0.75, 1.0)); // Pipe X
 						}else if(bZ == 2){
-							main.add(new AxisAlignedBB(0.125, 0.125, 0.125, 0.875, 0.875, 0.0)); // Pipe Connector -Z
-							main.add(new AxisAlignedBB(0.25, 0.25, 0.125, 0.75, 0.875, 0.75)); // Pipe Bend -Y +X
+							main.add(new AABB(0.125, 0.125, 0.125, 0.875, 0.875, 0.0)); // Pipe Connector -Z
+							main.add(new AABB(0.25, 0.25, 0.125, 0.75, 0.875, 0.75)); // Pipe Bend -Y +X
 						}else if(bZ == 4){
-							main.add(new AxisAlignedBB(0.625, 0.0, 0.625, 0.875, 1.0, 0.875)); // Vertical Corner Beam +X+Z
+							main.add(new AABB(0.625, 0.0, 0.625, 0.875, 1.0, 0.875)); // Vertical Corner Beam +X+Z
 						}
 						break;
 					}
@@ -824,50 +837,50 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 			// Vertical Pipe to the one below
 			if(bX == 8 && bZ == 2){
 				if(bY >= 8 && bY <= 13){
-					main.add(new AxisAlignedBB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75)); // Pipe Y
+					main.add(new AABB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75)); // Pipe Y
 				}
 				if(bY == 8){
-					main.add(new AxisAlignedBB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
+					main.add(new AABB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
 				}
 				if(bY == 13){
-					main.add(new AxisAlignedBB(0.125, 0.875, 0.875, 0.875, 1.0, 0.125)); // Pipe Connector +Y
+					main.add(new AABB(0.125, 0.875, 0.875, 0.875, 1.0, 0.125)); // Pipe Connector +Y
 				}
 			}
 			
 			// Horizontal Pipe to the one below
 			if(bY == 14){
 				if(bX >= 3 && bX <= 6 && bZ == 2){
-					main.add(new AxisAlignedBB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
+					main.add(new AABB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
 					
 					if(bX == 6){
-						main.add(new AxisAlignedBB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
+						main.add(new AABB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
 					}
 				}
 				if(bX == 7 && bZ == 2){
-					main.add(new AxisAlignedBB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
-					main.add(new AxisAlignedBB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
-					main.add(new AxisAlignedBB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
+					main.add(new AABB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
+					main.add(new AABB(0.875, 0.125, 0.875, 1.0, 0.875, 0.125)); // Pipe Connector +X
+					main.add(new AABB(0.0, 0.25, 0.75, 1.0, 0.75, 0.25)); // Pipe X
 				}
 				if(bX == 8 && bZ == 2){
-					main.add(new AxisAlignedBB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
-					main.add(new AxisAlignedBB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
-					main.add(new AxisAlignedBB(0.125, 0.125, 0.75, 0.75, 0.75, 0.25)); // Pipe Bend -Y +X
+					main.add(new AABB(0.0, 0.125, 0.875, 0.125, 0.875, 0.125)); // Pipe Connector -X
+					main.add(new AABB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125)); // Pipe Connector -Y
+					main.add(new AABB(0.125, 0.125, 0.75, 0.75, 0.75, 0.25)); // Pipe Bend -Y +X
 				}
 			}
 			
 			// Top 2 Vertical Pipes
 			if(bY >= 13 && bY <= 22){
 				if(bX == 3 && bZ == 2){
-					main.add(new AxisAlignedBB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75).offset(-0.25, 0, 0)); // Pipe Y
+					main.add(new AABB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75).offset(-0.25, 0, 0)); // Pipe Y
 					if(bY == 13){
-						main.add(new AxisAlignedBB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125).offset(-0.25, 0, 0)); // Pipe Connector -Y
+						main.add(new AABB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125).offset(-0.25, 0, 0)); // Pipe Connector -Y
 					}
 				}
 				
 				if(bX == 5 && bZ == 2){
-					main.add(new AxisAlignedBB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75).offset(0.25, 0, 0)); // Pipe Y
+					main.add(new AABB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75).offset(0.25, 0, 0)); // Pipe Y
 					if(bY == 13){
-						main.add(new AxisAlignedBB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125).offset(0.25, 0, 0)); // Pipe Connector -Y
+						main.add(new AABB(0.125, 0.0, 0.875, 0.875, 0.125, 0.125).offset(0.25, 0, 0)); // Pipe Connector -Y
 					}
 				}
 			}
@@ -881,29 +894,29 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 				if(bX == 2){
 					switch(bY){
 						case 13:{
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.25, 0.3125, 1.0, 0.5625));
+							main.add(new AABB(0.0625, 0.0, 0.25, 0.3125, 1.0, 0.5625));
 							
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.0, 0.3125, 0.25, 1.0));
-							main.add(new AxisAlignedBB(0.0, 0.0, 0.25, 1.0, 0.25, 0.5));
+							main.add(new AABB(0.0625, 0.0, 0.0, 0.3125, 0.25, 1.0));
+							main.add(new AABB(0.0, 0.0, 0.25, 1.0, 0.25, 0.5));
 							break;
 						}
 						case 14:{
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.3125, 0.3125, 1.0, 0.625));
+							main.add(new AABB(0.0625, 0.0, 0.3125, 0.3125, 1.0, 0.625));
 							break;
 						}
 						case 15:{
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.375, 0.3125, 1.0, 0.6875));
+							main.add(new AABB(0.0625, 0.0, 0.375, 0.3125, 1.0, 0.6875));
 							
-							main.add(new AxisAlignedBB(0.0625, 0.25, 0.375, 0.3125, 0.5, 1.0));
-							main.add(new AxisAlignedBB(0.0625, 0.25, 0.4375, 1.0, 0.5, 0.6875));
+							main.add(new AABB(0.0625, 0.25, 0.375, 0.3125, 0.5, 1.0));
+							main.add(new AABB(0.0625, 0.25, 0.4375, 1.0, 0.5, 0.6875));
 							break;
 						}
 						case 16:{
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.4375, 0.3125, 1.0, 0.75));
+							main.add(new AABB(0.0625, 0.0, 0.4375, 0.3125, 1.0, 0.75));
 							break;
 						}
 						case 17:{
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.5, 0.3125, 1.0, 0.8125));
+							main.add(new AABB(0.0625, 0.0, 0.5, 0.3125, 1.0, 0.8125));
 							break;
 						}
 					}
@@ -913,29 +926,29 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 				if(bX == 4){
 					switch(bY){
 						case 13:{
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.25, 0.625, 1.0, 0.5625));
+							main.add(new AABB(0.375, 0.0, 0.25, 0.625, 1.0, 0.5625));
 							
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.0, 0.625, 0.25, 1.0));
-							main.add(new AxisAlignedBB(0.0, 0.0, 0.25, 1.0, 0.25, 0.5));
+							main.add(new AABB(0.375, 0.0, 0.0, 0.625, 0.25, 1.0));
+							main.add(new AABB(0.0, 0.0, 0.25, 1.0, 0.25, 0.5));
 							break;
 						}
 						case 14:{
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.3125, 0.625, 1.0, 0.625));
+							main.add(new AABB(0.375, 0.0, 0.3125, 0.625, 1.0, 0.625));
 							break;
 						}
 						case 15:{
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.375, 0.625, 1.0, 0.6875));
+							main.add(new AABB(0.375, 0.0, 0.375, 0.625, 1.0, 0.6875));
 							
-							main.add(new AxisAlignedBB(0.0, 0.25, 0.4375, 1.0, 0.5, 0.6875));
-							main.add(new AxisAlignedBB(0.375, 0.25, 0.5, 0.625, 0.5, 1.0));
+							main.add(new AABB(0.0, 0.25, 0.4375, 1.0, 0.5, 0.6875));
+							main.add(new AABB(0.375, 0.25, 0.5, 0.625, 0.5, 1.0));
 							break;
 						}
 						case 16:{
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.4375, 0.625, 1.0, 0.75));
+							main.add(new AABB(0.375, 0.0, 0.4375, 0.625, 1.0, 0.75));
 							break;
 						}
 						case 17:{
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.5, 0.625, 1.0, 0.8125));
+							main.add(new AABB(0.375, 0.0, 0.5, 0.625, 1.0, 0.8125));
 							break;
 						}
 					}
@@ -945,29 +958,29 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 				if(bX == 6){
 					switch(bY){
 						case 13:{
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.25, 0.9375, 1.0, 0.5625));
+							main.add(new AABB(0.6875, 0.0, 0.25, 0.9375, 1.0, 0.5625));
 							
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.0, 0.9375, 0.25, 1.0));
-							main.add(new AxisAlignedBB(0.0, 0.0, 0.25, 1.0, 0.25, 0.5));
+							main.add(new AABB(0.6875, 0.0, 0.0, 0.9375, 0.25, 1.0));
+							main.add(new AABB(0.0, 0.0, 0.25, 1.0, 0.25, 0.5));
 							break;
 						}
 						case 14:{
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.3125, 0.9375, 1.0, 0.625));
+							main.add(new AABB(0.6875, 0.0, 0.3125, 0.9375, 1.0, 0.625));
 							break;
 						}
 						case 15:{
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.375, 0.9375, 1.0, 0.6875));
+							main.add(new AABB(0.6875, 0.0, 0.375, 0.9375, 1.0, 0.6875));
 							
-							main.add(new AxisAlignedBB(0.6875, 0.25, 0.375, 0.9375, 0.5, 1.0));
-							main.add(new AxisAlignedBB(0.0, 0.25, 0.4375, 0.75, 0.5, 0.6875));
+							main.add(new AABB(0.6875, 0.25, 0.375, 0.9375, 0.5, 1.0));
+							main.add(new AABB(0.0, 0.25, 0.4375, 0.75, 0.5, 0.6875));
 							break;
 						}
 						case 16:{
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.4375, 0.9375, 1.0, 0.75));
+							main.add(new AABB(0.6875, 0.0, 0.4375, 0.9375, 1.0, 0.75));
 							break;
 						}
 						case 17:{
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.5, 0.9375, 1.0, 0.8125));
+							main.add(new AABB(0.6875, 0.0, 0.5, 0.9375, 1.0, 0.8125));
 							break;
 						}
 					}
@@ -980,29 +993,29 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 				if(bX == 2){
 					switch(bY){
 						case 13:{
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.4375, 0.3125, 1.0, 0.75));
+							main.add(new AABB(0.0625, 0.0, 0.4375, 0.3125, 1.0, 0.75));
 							
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.0, 0.3125, 0.25, 1.0));
-							main.add(new AxisAlignedBB(0.0, 0.0, 0.5, 1.0, 0.25, 0.75));
+							main.add(new AABB(0.0625, 0.0, 0.0, 0.3125, 0.25, 1.0));
+							main.add(new AABB(0.0, 0.0, 0.5, 1.0, 0.25, 0.75));
 							break;
 						}
 						case 14:{
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.375, 0.3125, 1.0, 0.6875));
+							main.add(new AABB(0.0625, 0.0, 0.375, 0.3125, 1.0, 0.6875));
 							break;
 						}
 						case 15:{
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.3125, 0.3125, 1.0, 0.625));
+							main.add(new AABB(0.0625, 0.0, 0.3125, 0.3125, 1.0, 0.625));
 							
-							main.add(new AxisAlignedBB(0.0625, 0.25, 0.0, 0.3125, 0.5, 0.5));
-							main.add(new AxisAlignedBB(0.0625, 0.25, 0.3125, 1.0, 0.5, 0.5625));
+							main.add(new AABB(0.0625, 0.25, 0.0, 0.3125, 0.5, 0.5));
+							main.add(new AABB(0.0625, 0.25, 0.3125, 1.0, 0.5, 0.5625));
 							break;
 						}
 						case 16:{
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.25, 0.3125, 1.0, 0.5625));
+							main.add(new AABB(0.0625, 0.0, 0.25, 0.3125, 1.0, 0.5625));
 							break;
 						}
 						case 17:{
-							main.add(new AxisAlignedBB(0.0625, 0.0, 0.1875, 0.3125, 1.0, 0.5));
+							main.add(new AABB(0.0625, 0.0, 0.1875, 0.3125, 1.0, 0.5));
 							break;
 						}
 					}
@@ -1012,29 +1025,29 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 				if(bX == 4){
 					switch(bY){
 						case 13:{
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.4375, 0.625, 1.0, 0.75));
+							main.add(new AABB(0.375, 0.0, 0.4375, 0.625, 1.0, 0.75));
 							
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.0, 0.625, 0.25, 1.0));
-							main.add(new AxisAlignedBB(0.0, 0.0, 0.5, 1.0, 0.25, 0.75));
+							main.add(new AABB(0.375, 0.0, 0.0, 0.625, 0.25, 1.0));
+							main.add(new AABB(0.0, 0.0, 0.5, 1.0, 0.25, 0.75));
 							break;
 						}
 						case 14:{
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.375, 0.625, 1.0, 0.6875));
+							main.add(new AABB(0.375, 0.0, 0.375, 0.625, 1.0, 0.6875));
 							break;
 						}
 						case 15:{
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.3125, 0.625, 1.0, 0.625));
+							main.add(new AABB(0.375, 0.0, 0.3125, 0.625, 1.0, 0.625));
 							
-							main.add(new AxisAlignedBB(0.0, 0.25, 0.3125, 1.0, 0.5, 0.5625));
-							main.add(new AxisAlignedBB(0.375, 0.25, 0.0, 0.625, 0.5, 0.5));
+							main.add(new AABB(0.0, 0.25, 0.3125, 1.0, 0.5, 0.5625));
+							main.add(new AABB(0.375, 0.25, 0.0, 0.625, 0.5, 0.5));
 							break;
 						}
 						case 16:{
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.25, 0.625, 1.0, 0.5625));
+							main.add(new AABB(0.375, 0.0, 0.25, 0.625, 1.0, 0.5625));
 							break;
 						}
 						case 17:{
-							main.add(new AxisAlignedBB(0.375, 0.0, 0.1875, 0.625, 1.0, 0.5));
+							main.add(new AABB(0.375, 0.0, 0.1875, 0.625, 1.0, 0.5));
 							break;
 						}
 					}
@@ -1044,29 +1057,29 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 				if(bX == 6){
 					switch(bY){
 						case 13:{
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.4375, 0.9375, 1.0, 0.75));
+							main.add(new AABB(0.6875, 0.0, 0.4375, 0.9375, 1.0, 0.75));
 							
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.0, 0.9375, 0.25, 1.0));
-							main.add(new AxisAlignedBB(0.0, 0.0, 0.5, 1.0, 0.25, 0.75));
+							main.add(new AABB(0.6875, 0.0, 0.0, 0.9375, 0.25, 1.0));
+							main.add(new AABB(0.0, 0.0, 0.5, 1.0, 0.25, 0.75));
 							break;
 						}
 						case 14:{
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.375, 0.9375, 1.0, 0.6875));
+							main.add(new AABB(0.6875, 0.0, 0.375, 0.9375, 1.0, 0.6875));
 							break;
 						}
 						case 15:{
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.3125, 0.9375, 1.0, 0.625));
+							main.add(new AABB(0.6875, 0.0, 0.3125, 0.9375, 1.0, 0.625));
 							
-							main.add(new AxisAlignedBB(0.6875, 0.25, 0.0, 0.9375, 0.5, 0.5));
-							main.add(new AxisAlignedBB(0.0, 0.25, 0.3125, 0.75, 0.5, 0.5625));
+							main.add(new AABB(0.6875, 0.25, 0.0, 0.9375, 0.5, 0.5));
+							main.add(new AABB(0.0, 0.25, 0.3125, 0.75, 0.5, 0.5625));
 							break;
 						}
 						case 16:{
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.25, 0.9375, 1.0, 0.5625));
+							main.add(new AABB(0.6875, 0.0, 0.25, 0.9375, 1.0, 0.5625));
 							break;
 						}
 						case 17:{
-							main.add(new AxisAlignedBB(0.6875, 0.0, 0.1875, 0.9375, 1.0, 0.5));
+							main.add(new AABB(0.6875, 0.0, 0.1875, 0.9375, 1.0, 0.5));
 							break;
 						}
 					}
@@ -1076,26 +1089,26 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 		
 		// Use default cube shape if nessesary
 		if(main.isEmpty()){
-			main.add(new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 1.0, 1.0));
+			main.add(new AABB(0.0, 0.0, 0.0, 1.0, 1.0, 1.0));
 		}
 		return main;
 	}
 	
 	// STATIC CLASSES
 	
-	public class CokingProcess extends MultiblockProcessInMachine<CokerUnitRecipe>{
+	public class CokingProcess extends MultiblockProcessInMachine<CokerUnitRecipe> {
 		public CokingProcess(CokerUnitRecipe recipe){
 			super(recipe, Inventory.INPUT.id());
 			setInputTanks(TANK_INPUT);
 		}
 		
 		@Override
-		public boolean canProcess(PoweredMultiblockTileEntity<?, CokerUnitRecipe> multiblock){
+		public boolean canProcess(PoweredMultiblockBlockEntity<?, CokerUnitRecipe> multiblock){
 			return super.canProcess(multiblock);
 		}
 		
 		@Override
-		public void doProcessTick(PoweredMultiblockTileEntity<?, CokerUnitRecipe> multiblock){
+		public void doProcessTick(PoweredMultiblockBlockEntity<?, CokerUnitRecipe> multiblock){
 			super.doProcessTick(multiblock);
 		}
 	}
@@ -1141,14 +1154,14 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 			this.tank = new FluidTank(fluidCapacity);
 		}
 		
-		public CokingChamber readFromNBT(CompoundNBT nbt){
+		public CokingChamber readFromNBT(CompoundTag nbt){
 			this.tank.readFromNBT(nbt.getCompound("tank"));
 			this.timer = nbt.getInt("timer");
 			this.inputAmount = nbt.getInt("input");
 			this.outputAmount = nbt.getInt("output");
 			this.state = CokingState.values()[nbt.getInt("state")];
 			
-			if(nbt.contains("recipe", NBT.TAG_STRING)){
+			if(nbt.contains("recipe", Tag.TAG_STRING)){
 				try{
 					this.recipe = CokerUnitRecipe.recipes.get(new ResourceLocation(nbt.getString("recipe")));
 				}catch(ResourceLocationException e){
@@ -1161,8 +1174,8 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 			return this;
 		}
 		
-		public CompoundNBT writeToNBT(CompoundNBT nbt){
-			nbt.put("tank", this.tank.writeToNBT(new CompoundNBT()));
+		public CompoundTag writeToNBT(CompoundTag nbt){
+			nbt.put("tank", this.tank.writeToNBT(new CompoundTag()));
 			nbt.putInt("timer", this.timer);
 			nbt.putInt("input", this.inputAmount);
 			nbt.putInt("output", this.outputAmount);
@@ -1338,7 +1351,7 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 						this.timer = 0;
 						
 						if(this.outputAmount > 0){
-							World world = cokerunit.getWorldNonnull();
+							Level world = cokerunit.getLevelNonnull();
 							int amount = Math.min(this.outputAmount, 1);
 							ItemStack copy = this.recipe.outputItem.copy();
 							copy.setCount(amount);
@@ -1346,9 +1359,9 @@ public class CokerUnitTileEntity extends PoweredMultiblockTileEntity<CokerUnitTi
 							// Drop item(s) at the designated chamber output location
 							BlockPos itemOutPos = cokerunit.getBlockPosForPos(chamberId == 0 ? Chamber_A_OUT : Chamber_B_OUT);
 							Vector3d center = new Vector3d(itemOutPos.getX() + 0.5, itemOutPos.getY() - 0.5, itemOutPos.getZ() + 0.5);
-							ItemEntity ent = new ItemEntity(cokerunit.getWorldNonnull(), center.x, center.y, center.z, copy);
-							ent.setMotion(0.0, 0.0, 0.0); // Any movement has the potential to end with the stack bouncing all over the place
-							world.addEntity(ent);
+							ItemEntity ent = new ItemEntity(cokerunit.getLevelNonnull(), center.x, center.y, center.z, copy);
+							ent.setDeltaMovement(0.0, 0.0, 0.0); // Any movement has the potential to end with the stack bouncing all over the place
+							world.addFreshEntity(ent);
 							this.outputAmount -= amount;
 							
 							update = true;

@@ -1,49 +1,48 @@
 package flaxbeard.immersivepetroleum.common.blocks;
 
+import blusunrize.immersiveengineering.api.Lib;
+import net.minecraft.ChatFormatting;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraftforge.fluids.FluidStack;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.List;
 
-import blusunrize.immersiveengineering.api.Lib;
-import net.minecraft.block.Block;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.util.text.IFormattableTextComponent;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.TranslationTextComponent;
-import net.minecraft.world.World;
-import net.minecraftforge.fluids.FluidStack;
-
-public class IPBlockItemBase extends BlockItem{
+public class IPBlockItemBase extends BlockItem {
 	public IPBlockItemBase(Block blockIn, Properties builder){
 		super(blockIn, builder);
 	}
 	
 	@Override
-	public void addInformation(ItemStack stack, World worldIn, List<ITextComponent> tooltip, ITooltipFlag flagIn){
+	public void appendHoverText(ItemStack stack, Level worldIn, @NotNull List<Component> tooltip, @NotNull TooltipFlag flagIn){
 		if(stack.hasTag()){
 			// Display Stored Tank Information
 			if(stack.getTag().contains("tank")){
-				CompoundNBT tank = stack.getTag().getCompound("tank");
+				CompoundTag tank = stack.getTag().getCompound("tank");
 				
 				FluidStack fluidstack = FluidStack.loadFluidStackFromNBT(tank);
 				if(fluidstack.getAmount() > 0){
-					tooltip.add(((IFormattableTextComponent) fluidstack.getDisplayName()).appendString(" " + fluidstack.getAmount() + "mB").mergeStyle(TextFormatting.GRAY));
+					tooltip.add(((TextComponent) fluidstack.getDisplayName()).append(" " + fluidstack.getAmount() + "mB").withStyle(ChatFormatting.GRAY));
 				}else{
-					tooltip.add(new TranslationTextComponent(Lib.GUI + "empty").mergeStyle(TextFormatting.GRAY));
+					tooltip.add(new TextComponent(Lib.GUI + "empty").withStyle(ChatFormatting.GRAY));
 				}
 			}
 			
 			// Display Stored Energy Information
 			if(stack.getTag().contains("energy")){
-				CompoundNBT energy = stack.getTag().getCompound("energy");
+				CompoundTag energy = stack.getTag().getCompound("energy");
 				int flux = energy.getInt("ifluxEnergy");
-				tooltip.add(new StringTextComponent(flux + "RF").mergeStyle(TextFormatting.GRAY));
+				tooltip.add(new TextComponent(flux + "RF").withStyle(ChatFormatting.GRAY));
 			}
 		}
 		
-		super.addInformation(stack, worldIn, tooltip, flagIn);
+		super.appendHoverText(stack, worldIn, tooltip, flagIn);
 	}
 }

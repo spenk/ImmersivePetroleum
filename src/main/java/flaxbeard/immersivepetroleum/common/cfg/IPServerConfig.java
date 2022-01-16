@@ -1,12 +1,7 @@
 package flaxbeard.immersivepetroleum.common.cfg;
 
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.List;
-
 import com.electronwill.nightconfig.core.Config;
 import com.google.common.base.Preconditions;
-
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.api.energy.FuelHandler;
 import net.minecraftforge.common.ForgeConfigSpec;
@@ -15,7 +10,11 @@ import net.minecraftforge.common.ForgeConfigSpec.ConfigValue;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
-import net.minecraftforge.fml.config.ModConfig.ModConfigEvent;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
+
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.List;
 
 @EventBusSubscriber(modid = ImmersivePetroleum.MODID, bus = Bus.MOD)
 public class IPServerConfig{

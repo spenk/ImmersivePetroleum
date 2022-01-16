@@ -1,21 +1,12 @@
 package flaxbeard.immersivepetroleum.common;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-
-import blusunrize.immersiveengineering.api.DimensionChunkCoords;
-import blusunrize.immersiveengineering.common.blocks.IEBlocks;
-import blusunrize.immersiveengineering.common.blocks.generic.MultiblockPartTileEntity;
-import blusunrize.immersiveengineering.common.blocks.metal.SampleDrillTileEntity;
+import blusunrize.immersiveengineering.common.blocks.generic.MultiblockPartBlockEntity;
+import blusunrize.immersiveengineering.common.blocks.metal.SampleDrillBlockEntity;
 import blusunrize.immersiveengineering.common.items.CoresampleItem;
+import blusunrize.immersiveengineering.common.register.IEBlocks;
 import blusunrize.immersiveengineering.common.util.ItemNBTHelper;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
+import flaxbeard.immersivepetroleum.api.DimensionChunkCoords;
 import flaxbeard.immersivepetroleum.api.crafting.LubricatedHandler;
 import flaxbeard.immersivepetroleum.api.crafting.LubricatedHandler.ILubricationHandler;
 import flaxbeard.immersivepetroleum.api.crafting.LubricatedHandler.LubricatedTileInfo;
@@ -25,26 +16,27 @@ import flaxbeard.immersivepetroleum.common.cfg.IPServerConfig;
 import flaxbeard.immersivepetroleum.common.entity.MotorboatEntity;
 import flaxbeard.immersivepetroleum.common.fluids.NapalmFluid;
 import flaxbeard.immersivepetroleum.common.util.IPEffects;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.FlowingFluidBlock;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.fluid.FluidState;
-import net.minecraft.fluid.Fluids;
-import net.minecraft.item.crafting.IRecipe;
-import net.minecraft.particles.BlockParticleData;
-import net.minecraft.particles.ParticleTypes;
-import net.minecraft.potion.EffectInstance;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ColumnPos;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.Direction;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ColumnPos;
-import net.minecraft.util.math.vector.Vector3i;
-import net.minecraft.world.World;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.TickEvent.Phase;
 import net.minecraftforge.event.TickEvent.PlayerTickEvent;
@@ -58,17 +50,19 @@ import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
+import java.util.*;
+
 public class CommonEventHandler{
 	@SubscribeEvent
 	public void onSave(WorldEvent.Save event){
-		if(!event.getWorld().isRemote()){
+		if(event.getWorld().isClientSide()){
 			IPSaveData.markInstanceAsDirty();
 		}
 	}
 	
 	@SubscribeEvent
 	public void onUnload(WorldEvent.Unload event){
-		if(!event.getWorld().isRemote()){
+		if(event.getWorld().isClientSide()){
 			IPSaveData.markInstanceAsDirty();
 		}
 	}
@@ -77,20 +71,20 @@ public class CommonEventHandler{
 	public void handlePickupItem(RightClickBlock event){
 		BlockPos pos = event.getPos();
 		BlockState state = event.getWorld().getBlockState(pos);
-		if(state.getBlock() == IEBlocks.MetalDevices.sampleDrill){
-			TileEntity te = event.getWorld().getTileEntity(pos);
-			if(te instanceof SampleDrillTileEntity){
-				SampleDrillTileEntity drill = (SampleDrillTileEntity) te;
+		if(state.getBlock() == IEBlocks.MetalDevices.SAMPLE_DRILL.get()){
+			BlockEntity te = event.getWorld().getBlockEntity(pos);
+			if(te instanceof SampleDrillBlockEntity){
+				SampleDrillBlockEntity drill = (SampleDrillBlockEntity) te;
 				if(drill.isDummy()){
-					drill = (SampleDrillTileEntity) drill.master();
+					drill = (SampleDrillBlockEntity) drill.master();
 				}
 				
 				if(!drill.sample.isEmpty()){
 					ColumnPos cPos = CoresampleItem.getCoords(drill.sample);
 					if(cPos != null){
 						try{
-							World world = event.getWorld();
-							DimensionChunkCoords coords = new DimensionChunkCoords(world.getDimensionKey(), cPos.x >> 4, cPos.z >> 4);
+							Level world = event.getWorld();
+							DimensionChunkCoords coords = new DimensionChunkCoords(world.dimension(), cPos.x >> 4, cPos.z >> 4);
 							
 							ReservoirWorldInfo info = PumpjackHandler.getOrCreateOilWorldInfo(world, coords, false);
 							if(info != null && info.getType() != null){
@@ -113,17 +107,17 @@ public class CommonEventHandler{
 	public void handleBoatImmunity(LivingAttackEvent event){
 		if(event.getSource() == DamageSource.LAVA || event.getSource() == DamageSource.ON_FIRE || event.getSource() == DamageSource.IN_FIRE){
 			LivingEntity entity = event.getEntityLiving();
-			if(entity.getRidingEntity() instanceof MotorboatEntity){
-				MotorboatEntity boat = (MotorboatEntity) entity.getRidingEntity();
+			if(entity.getVehicle() instanceof MotorboatEntity){
+				MotorboatEntity boat = (MotorboatEntity) entity.getVehicle();
 				if(boat.isFireproof){
 					event.setCanceled(true);
 					return;
 				}
 			}
 			
-			if(entity.getFireTimer() > 0 && entity.getActivePotionEffect(IPEffects.ANTI_DISMOUNT_FIRE) != null){
-				entity.extinguish();
-				entity.removePotionEffect(IPEffects.ANTI_DISMOUNT_FIRE);
+			if(entity.getRemainingFireTicks() > 0 && entity.getEffect(IPEffects.ANTI_DISMOUNT_FIRE) != null){
+				entity.clearFire();
+				entity.removeEffect(IPEffects.ANTI_DISMOUNT_FIRE);
 				event.setCanceled(true);
 			}
 		}
@@ -131,11 +125,11 @@ public class CommonEventHandler{
 	
 	@SubscribeEvent
 	public void handleBoatImmunity(PlayerTickEvent event){
-		PlayerEntity entity = event.player;
-		if(entity.isBurning() && entity.getRidingEntity() instanceof MotorboatEntity){
-			MotorboatEntity boat = (MotorboatEntity) entity.getRidingEntity();
+		Player entity = event.player;
+		if(entity.isOnFire() && entity.getVehicle() instanceof MotorboatEntity){
+			MotorboatEntity boat = (MotorboatEntity) entity.getVehicle();
 			if(boat.isFireproof){
-				entity.extinguish();
+				entity.clearFire();
 				boat.setFlag(0, false);
 			}
 		}
@@ -156,11 +150,11 @@ public class CommonEventHandler{
 				MotorboatEntity boat = (MotorboatEntity) event.getEntityBeingMounted();
 				
 				if(boat.isFireproof){
-					FluidState fluidstate = event.getWorldObj().getBlockState(new BlockPos(boat.getPositionVec().add(0.5, 0, 0.5))).getFluidState();
-					if(fluidstate != Fluids.EMPTY.getDefaultState() && fluidstate.isTagged(FluidTags.LAVA)){
+					FluidState fluidstate = event.getWorldObj().getBlockState(new BlockPos(boat.position().add(0.5, 0, 0.5))).getFluidState();
+					if(fluidstate != Fluids.EMPTY.defaultFluidState() && fluidstate.is(FluidTags.LAVA)){
 						LivingEntity living = (LivingEntity) event.getEntityMounting();
 						
-						living.addPotionEffect(new EffectInstance(IPEffects.ANTI_DISMOUNT_FIRE, 1, 0, false, false));
+						living.addEffect(new MobEffectInstance(IPEffects.ANTI_DISMOUNT_FIRE, 1, 0, false, false));
 						return;
 					}
 				}
@@ -177,37 +171,37 @@ public class CommonEventHandler{
 	
 	static final Random random = new Random();
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	public static void handleLubricatingMachines(World world){
+	public static void handleLubricatingMachines(Level world){
 		Set<LubricatedTileInfo> toRemove = new HashSet<LubricatedTileInfo>();
 		for(LubricatedTileInfo info:LubricatedHandler.lubricatedTiles){
-			if(info.world == world.getDimensionKey() && world.isAreaLoaded(info.pos, 0)){
-				TileEntity te = world.getTileEntity(info.pos);
+			if(info.world == world.dimension() && world.isAreaLoaded(info.pos, 0)){
+				BlockEntity te = world.getBlockEntity(info.pos);
 				ILubricationHandler lubeHandler = LubricatedHandler.getHandlerForTile(te);
 				if(lubeHandler != null){
 					if(lubeHandler.isMachineEnabled(world, te)){
 						lubeHandler.lubricate(world, info.ticks, te);
 					}
 					
-					if(world.isRemote){
-						if(te instanceof MultiblockPartTileEntity){
-							MultiblockPartTileEntity<?> part = (MultiblockPartTileEntity<?>) te;
-							
-							BlockParticleData lubeParticle = new BlockParticleData(ParticleTypes.FALLING_DUST, IPContent.Fluids.lubricant.block.getDefaultState());
-							Vector3i size = lubeHandler.getStructureDimensions();
+					if(!world.isClientSide){
+						if(te instanceof MultiblockPartBlockEntity){
+							MultiblockPartBlockEntity<?> part = (MultiblockPartBlockEntity<?>) te;
+
+							BlockParticleOption lubeParticle = new BlockParticleOption(ParticleTypes.FALLING_DUST, IPContent.Fluids.lubricant.block.defaultBlockState());
+							Vec3i size = lubeHandler.getStructureDimensions();
 							
 							int numBlocks = (int) (size.getX() * size.getY() * size.getZ() * 0.25F);
 							
 							for(int i = 0;i < numBlocks;i++){
 								BlockPos pos = part.getBlockPosForPos(new BlockPos(size.getX() * random.nextFloat(), size.getY() * random.nextFloat(), size.getZ() * random.nextFloat()));
-								if(world.getBlockState(pos) == Blocks.AIR.getDefaultState())
+								if(world.getBlockState(pos) == Blocks.AIR.defaultBlockState())
 									continue;
 								
-								TileEntity te2 = world.getTileEntity(info.pos);
-								if(te2 != null && te2 instanceof MultiblockPartTileEntity){
-									if(((MultiblockPartTileEntity<?>) te2).master() == part.master()){
+								BlockEntity te2 = world.getBlockEntity(info.pos);
+								if(te2 != null && te2 instanceof MultiblockPartBlockEntity){
+									if(((MultiblockPartBlockEntity<?>) te2).master() == part.master()){
 										for(Direction facing:Direction.Plane.HORIZONTAL){
-											if(world.rand.nextInt(30) == 0){// && world.getBlockState(pos.offset(facing)).getBlock().isReplaceable(world, pos.offset(facing))){
-												Vector3i direction = facing.getDirectionVec();
+											if(world.random.nextInt(30) == 0){// && world.getBlockState(pos.offset(facing)).getBlock().isReplaceable(world, pos.offset(facing))){
+												Vec3i direction = facing.getNormal();
 												world.addParticle(lubeParticle,
 														pos.getX() + .5f + direction.getX() * .65f,
 														pos.getY() + 1,
@@ -235,31 +229,31 @@ public class CommonEventHandler{
 	
 	@SubscribeEvent
 	public void onEntityJoiningWorld(EntityJoinWorldEvent event){
-		if(event.getEntity() instanceof PlayerEntity){
+		if(event.getEntity() instanceof Player){
 			if(event.getEntity() instanceof FakePlayer){
 				return;
 			}
 			
 			if(IPServerConfig.MISCELLANEOUS.autounlock_recipes.get()){
-				List<IRecipe<?>> l = new ArrayList<IRecipe<?>>();
-				Collection<IRecipe<?>> recipes = event.getWorld().getRecipeManager().getRecipes();
+				List<Recipe<?>> l = new ArrayList<Recipe<?>>();
+				Collection<Recipe<?>> recipes = event.getWorld().getRecipeManager().getRecipes();
 				recipes.forEach(recipe -> {
 					ResourceLocation name = recipe.getId();
 					if(name.getNamespace() == ImmersivePetroleum.MODID){
-						if(recipe.getRecipeOutput().getItem() != null){
+						if(recipe.getResultItem() != ItemStack.EMPTY){
 							l.add(recipe);
 						}
 					}
 				});
 				
-				((PlayerEntity) event.getEntity()).unlockRecipes(l);
+				((Player) event.getEntity()).awardRecipes(l);
 			}
 		}
 	}
 	
 	@SubscribeEvent
 	public void test(LivingEvent.LivingUpdateEvent event){
-		if(event.getEntityLiving() instanceof PlayerEntity){
+		if(event.getEntityLiving() instanceof Player){
 			// event.getEntityLiving().setFire(1);
 		}
 	}
@@ -269,7 +263,7 @@ public class CommonEventHandler{
 	
 	@SubscribeEvent
 	public void handleNapalm(WorldTickEvent event){
-		ResourceLocation d = event.world.getDimensionKey().getRegistryName();
+		ResourceLocation d = event.world.dimension().getRegistryName();
 		
 		if(event.phase == Phase.START){
 			toRemove.put(d, new ArrayList<>());
@@ -277,7 +271,7 @@ public class CommonEventHandler{
 				List<BlockPos> iterate = new ArrayList<>(napalmPositions.get(d));
 				for(BlockPos position:iterate){
 					BlockState state = event.world.getBlockState(position);
-					if(state.getBlock() instanceof FlowingFluidBlock && state.getBlock() == IPContent.Fluids.napalm.block){
+					if(state.getBlock() instanceof LiquidBlock && state.getBlock() == IPContent.Fluids.napalm.block){
 						((NapalmFluid) IPContent.Fluids.napalm).processFire(event.world, position);
 					}
 					toRemove.get(d).add(position);

@@ -2,14 +2,14 @@ package flaxbeard.immersivepetroleum.common.blocks;
 
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.common.IPContent;
-import net.minecraft.block.StairsBlock;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.StairBlock;
 
-public class IPBlockStairs<B extends IPBlockBase> extends StairsBlock{
+public class IPBlockStairs<B extends IPBlockBase> extends StairBlock {
 	public IPBlockStairs(B base){
-		super(base::getDefaultState, Properties.from(base));
+		super(base::defaultBlockState, Properties.copy(base));
 		setRegistryName(new ResourceLocation(ImmersivePetroleum.MODID, base.getRegistryName().getPath() + "_stairs"));
 		
 		IPContent.registeredIPBlocks.add(this);
@@ -21,6 +21,6 @@ public class IPBlockStairs<B extends IPBlockBase> extends StairsBlock{
 	}
 	
 	protected BlockItem createBlockItem(){
-		return new IPBlockItemBase(this, new Item.Properties().group(ImmersivePetroleum.creativeTab));
+		return new IPBlockItemBase(this, new Item.Properties().tab(ImmersivePetroleum.creativeTab));
 	}
 }

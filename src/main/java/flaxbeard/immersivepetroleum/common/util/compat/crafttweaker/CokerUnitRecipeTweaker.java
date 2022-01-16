@@ -1,32 +1,31 @@
 package flaxbeard.immersivepetroleum.common.util.compat.crafttweaker;
 
-import org.openzen.zencode.java.ZenCodeType.Method;
-import org.openzen.zencode.java.ZenCodeType.Name;
-
-import com.blamejared.crafttweaker.api.annotations.ZenRegister;
-import com.blamejared.crafttweaker.api.fluid.IFluidStack;
-import com.blamejared.crafttweaker.api.item.IIngredient;
-import com.blamejared.crafttweaker.api.item.IItemStack;
-import com.blamejared.crafttweaker.api.managers.IRecipeManager;
-import com.blamejared.crafttweaker.impl.item.MCItemStack;
-import com.blamejared.crafttweaker.impl.tag.MCTagWithAmount;
-import com.blamejared.crafttweaker_annotations.annotations.Document;
-
 import blusunrize.immersiveengineering.api.crafting.FluidTagInput;
 import blusunrize.immersiveengineering.api.crafting.IngredientWithSize;
+import com.blamejared.crafttweaker.api.annotation.ZenRegister;
+import com.blamejared.crafttweaker.api.fluid.IFluidStack;
+import com.blamejared.crafttweaker.api.ingredient.IIngredient;
+import com.blamejared.crafttweaker.api.item.IItemStack;
+import com.blamejared.crafttweaker.api.item.MCItemStack;
+import com.blamejared.crafttweaker.api.recipe.manager.base.IRecipeManager;
+import com.blamejared.crafttweaker.api.tag.MCTag;
+import com.blamejared.crafttweaker.api.util.Many;
+import com.blamejared.crafttweaker_annotations.annotations.Document;
 import flaxbeard.immersivepetroleum.api.crafting.CokerUnitRecipe;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipeType;
-import net.minecraft.item.crafting.Ingredient;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.material.Fluid;
+import org.openzen.zencode.java.ZenCodeType.Method;
+import org.openzen.zencode.java.ZenCodeType.Name;
 
 @ZenRegister
 @Document("mods/immersivepetroleum/Coker")
 @Name("mods.immersivepetroleum.CokerUnit")
-public class CokerUnitRecipeTweaker implements IRecipeManager{
+public class CokerUnitRecipeTweaker implements IRecipeManager {
 	@Override
-	public IRecipeType<CokerUnitRecipe> getRecipeType(){
+	public RecipeType<CokerUnitRecipe> getRecipeType(){
 		return CokerUnitRecipe.TYPE;
 	}
 	
@@ -78,12 +77,12 @@ public class CokerUnitRecipeTweaker implements IRecipeManager{
 	 * @docParam energy 1024
 	 */
 	@Method
-	public void addRecipe(String name, IItemStack inputItem, IItemStack outputItem, MCTagWithAmount<Fluid> inputFluid, MCTagWithAmount<Fluid> outputFluid, int energy){
+	public void addRecipe(String name, IItemStack inputItem, IItemStack outputItem, Many<MCTag<Fluid>> inputFluid, Many<MCTag<Fluid>>outputFluid, int energy){
 		ResourceLocation id = TweakerUtils.ctLoc("cokerunit/" + name);
-		FluidTagInput outFluid = new FluidTagInput(outputFluid.getTag().getId(), outputFluid.getAmount());
-		FluidTagInput inFluid = new FluidTagInput(inputFluid.getTag().getId(), inputFluid.getAmount());
+		FluidTagInput outFluid = new FluidTagInput(outputFluid.getData().id(), outputFluid.getAmount());
+		FluidTagInput inFluid = new FluidTagInput(inputFluid.getData().id(), inputFluid.getAmount());
 		
-		IngredientWithSize inStack = new IngredientWithSize(Ingredient.fromStacks(inputItem.getInternal()), inputItem.getAmount());
+		IngredientWithSize inStack = new IngredientWithSize(Ingredient.of(inputItem.getInternal()), inputItem.getAmount());
 		ItemStack outStack = outputItem.getInternal();
 		
 		CokerUnitRecipe recipe = new CokerUnitRecipe(id, outStack, outFluid, inStack, inFluid, energy, 30);

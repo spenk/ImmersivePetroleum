@@ -10,13 +10,13 @@ import flaxbeard.immersivepetroleum.common.crafting.serializers.CokerUnitRecipeS
 import flaxbeard.immersivepetroleum.common.crafting.serializers.DistillationRecipeSerializer;
 import flaxbeard.immersivepetroleum.common.crafting.serializers.ReservoirTypeSerializer;
 import flaxbeard.immersivepetroleum.common.crafting.serializers.SulfurRecoveryRecipeSerializer;
-import net.minecraft.item.crafting.IRecipeSerializer;
-import net.minecraftforge.fml.RegistryObject;
+import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
 
 public class Serializers{
-	public static final DeferredRegister<IRecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister.create(ForgeRegistries.RECIPE_SERIALIZERS, ImmersivePetroleum.MODID);
+	public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister.create(ForgeRegistries.RECIPE_SERIALIZERS, ImmersivePetroleum.MODID);
 	
 	public static final RegistryObject<IERecipeSerializer<DistillationRecipe>> DISTILLATION_SERIALIZER = RECIPE_SERIALIZERS.register(
 			"distillation", DistillationRecipeSerializer::new

@@ -1,8 +1,5 @@
 package flaxbeard.immersivepetroleum.common.items;
 
-import java.util.List;
-import java.util.function.Supplier;
-
 import blusunrize.immersiveengineering.api.tool.IUpgrade;
 import blusunrize.immersiveengineering.api.tool.IUpgradeableTool;
 import blusunrize.immersiveengineering.common.gui.IESlot;
@@ -10,30 +7,31 @@ import blusunrize.immersiveengineering.common.util.ItemNBTHelper;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.common.entity.MotorboatEntity;
 import flaxbeard.immersivepetroleum.common.util.IPItemStackHandler;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.container.Container;
-import net.minecraft.inventory.container.Slot;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.ActionResultType;
-import net.minecraft.util.Hand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceContext;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.vector.Vector3d;
-import net.minecraft.util.text.IFormattableTextComponent;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.world.World;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
@@ -41,22 +39,26 @@ import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
+import org.jetbrains.annotations.NotNull;
 
-public class MotorboatItem extends IPItemBase implements IUpgradeableTool{
+import java.util.List;
+import java.util.function.Supplier;
+
+public class MotorboatItem extends IPItemBase implements IUpgradeableTool {
 	public static final String UPGRADE_TYPE = "MOTORBOAT";
 	
 	public MotorboatItem(String name){
-		super(name, new Item.Properties().maxStackSize(1).group(ImmersivePetroleum.creativeTab));
+		super(name, new Item.Properties().stacksTo(1).tab(ImmersivePetroleum.creativeTab));
 	}
 	
 	@Override
-	public ICapabilityProvider initCapabilities(ItemStack stack, CompoundNBT nbt){
+	public ICapabilityProvider initCapabilities(ItemStack stack, CompoundTag nbt){
 		return new IPItemStackHandler();
 	}
 	
 	@Override
-	public CompoundNBT getUpgrades(ItemStack stack){
-		return new CompoundNBT();
+	public CompoundTag getUpgrades(ItemStack stack){
+		return new CompoundTag();
 	}
 	
 	@Override
@@ -72,10 +74,10 @@ public class MotorboatItem extends IPItemBase implements IUpgradeableTool{
 	public boolean canModify(ItemStack stack){
 		return true;
 	}
-	
+
 	@Override
-	public void recalculateUpgrades(ItemStack stack, World w, PlayerEntity player){
-		if(w.isRemote){
+	public void recalculateUpgrades(ItemStack stack, Level w, Player player){
+		if(!w.isClientSide){
 			return;
 		}
 		
@@ -83,7 +85,7 @@ public class MotorboatItem extends IPItemBase implements IUpgradeableTool{
 		
 		LazyOptional<IItemHandler> lazy = stack.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY);
 		lazy.ifPresent(handler -> {
-			CompoundNBT nbt = new CompoundNBT();
+			CompoundTag nbt = new CompoundTag();
 			
 			for(int i = 0;i < handler.getSlots();i++){
 				ItemStack u = handler.getStackInSlot(i);
@@ -100,82 +102,82 @@ public class MotorboatItem extends IPItemBase implements IUpgradeableTool{
 	}
 	
 	@Override
-	public void removeFromWorkbench(PlayerEntity player, ItemStack stack){
+	public void removeFromWorkbench(Player player, ItemStack stack){
 	}
 	
 	@Override
-	public ActionResult<ItemStack> onItemRightClick(World worldIn, PlayerEntity playerIn, Hand handIn){
-		ItemStack itemstack = playerIn.getHeldItem(handIn);
-		float f1 = playerIn.prevRotationPitch + (playerIn.rotationPitch - playerIn.prevRotationPitch) * 1.0F;
-		float f2 = playerIn.prevRotationYaw + (playerIn.rotationYaw - playerIn.prevRotationYaw) * 1.0F;
-		double d0 = playerIn.prevPosX + (playerIn.getPosX() - playerIn.prevPosX) * 1.0D;
-		double d1 = playerIn.prevPosY + (playerIn.getPosY() - playerIn.prevPosY) * 1.0D + (double) playerIn.getEyeHeight();
-		double d2 = playerIn.prevPosZ + (playerIn.getPosZ() - playerIn.prevPosZ) * 1.0D;
-		Vector3d vec3d = new Vector3d(d0, d1, d2);
-		float f3 = MathHelper.cos(-f2 * 0.017453292F - (float) Math.PI);
-		float f4 = MathHelper.sin(-f2 * 0.017453292F - (float) Math.PI);
-		float f5 = -MathHelper.cos(-f1 * 0.017453292F);
-		float f6 = MathHelper.sin(-f1 * 0.017453292F);
+	public @NotNull InteractionResultHolder<ItemStack> use(Level worldIn, Player playerIn, @NotNull InteractionHand handIn){
+		ItemStack itemstack = playerIn.getItemInHand(handIn);
+		float f1 = playerIn.xRotO + (playerIn.getXRot() - playerIn.xRotO);
+		float f2 = playerIn.yRotO + (playerIn.getYRot() - playerIn.yRotO);
+		double d0 = playerIn.xo + (playerIn.getX() - playerIn.xo);
+		double d1 = playerIn.yo + (playerIn.getY() - playerIn.yo) + (double) playerIn.getEyeHeight();
+		double d2 = playerIn.zo + (playerIn.getZ() - playerIn.zo);
+		Vec3 vec3d = new Vec3(d0, d1, d2);
+		float f3 = Mth.cos(-f2 * 0.017453292F - (float) Math.PI);
+		float f4 = Mth.sin(-f2 * 0.017453292F - (float) Math.PI);
+		float f5 = -Mth.cos(-f1 * 0.017453292F);
+		float f6 = Mth.sin(-f1 * 0.017453292F);
 		float f7 = f4 * f5;
 		float f8 = f3 * f5;
 		
-		Vector3d vec3d1 = vec3d.add((double) f7 * 5.0D, (double) f6 * 5.0D, (double) f8 * 5.0D);
-		RayTraceResult raytraceresult = worldIn.rayTraceBlocks(new RayTraceContext(vec3d, vec3d1, RayTraceContext.BlockMode.COLLIDER, RayTraceContext.FluidMode.ANY, playerIn));
-		
+		Vec3 vec3d1 = vec3d.add((double) f7 * 5.0D, (double) f6 * 5.0D, (double) f8 * 5.0D);
+		HitResult raytraceresult = worldIn.clip(new ClipContext(vec3d, vec3d1, ClipContext.Block.COLLIDER, ClipContext.Fluid.ANY, playerIn));
+
 		if(raytraceresult != null){
-			Vector3d vec3d2 = playerIn.getLook(1.0F);
+			Vec3 vec3d2 = playerIn.getLookAngle();
 			boolean flag = false;
-			AxisAlignedBB bb = playerIn.getBoundingBox();
+			AABB bb = playerIn.getBoundingBox();
 			if(bb == null)
 				bb = playerIn.getBoundingBox();
-			
+
 			if(bb != null){
-				List<Entity> list = worldIn.getEntitiesWithinAABBExcludingEntity(playerIn, bb.expand(vec3d2.x * 5.0D, vec3d2.y * 5.0D, vec3d2.z * 5.0D).grow(1.0D));
+				List<Entity> list = worldIn.getEntities(playerIn, bb.expandTowards(vec3d2.x * 5.0D, vec3d2.y * 5.0D, vec3d2.z * 5.0D).inflate(1.0D));
 				for(int i = 0;i < list.size();++i){
 					Entity entity = (Entity) list.get(i);
-					
+
 					if(entity.canBeCollidedWith()){
-						AxisAlignedBB axisalignedbb = entity.getBoundingBox();
-						if(axisalignedbb != null && axisalignedbb.grow((double) entity.getCollisionBorderSize()).contains(vec3d)){
+						AABB AABB = entity.getBoundingBox();
+						if(AABB != null && AABB.inflate((double) entity.getPickRadius()).contains(vec3d)){
 							flag = true;
 						}
 					}
 				}
 			}
-			
+
 			if(flag){
-				return new ActionResult<ItemStack>(ActionResultType.PASS, itemstack);
-			}else if(raytraceresult.getType() != RayTraceResult.Type.BLOCK){
-				return new ActionResult<ItemStack>(ActionResultType.PASS, itemstack);
+				return new InteractionResultHolder<ItemStack>(InteractionResult.PASS, itemstack);
+			}else if(raytraceresult.getType() != BlockHitResult.Type.BLOCK){
+				return new InteractionResultHolder<ItemStack>(InteractionResult.PASS, itemstack);
 			}else{
-				Vector3d hit = raytraceresult.getHitVec();
+				Vec3 hit = raytraceresult.getLocation();
 				Block block = worldIn.getBlockState(new BlockPos(hit.add(0, .5, 0))).getBlock();
 				boolean flag1 = block == Blocks.WATER;
 				MotorboatEntity entityboat = new MotorboatEntity(worldIn, hit.x, flag1 ? hit.y - 0.12D : hit.y, hit.z);
 				{
-					entityboat.rotationYaw = playerIn.rotationYaw;
+					entityboat.setYRot(playerIn.getYRot());
 					entityboat.setUpgrades(getContainedItems(itemstack));
 					entityboat.readTank(itemstack.getTag());
 				}
-				
-				if(worldIn.getBlockCollisionShapes(entityboat, entityboat.getBoundingBox().grow(-0.1D)).findFirst().isPresent()){
-					return new ActionResult<ItemStack>(ActionResultType.FAIL, itemstack);
+
+				if(worldIn.getBlockCollisions(entityboat, entityboat.getBoundingBox().inflate(-0.1D)).iterator().hasNext()){
+					return new InteractionResultHolder<ItemStack>(InteractionResult.FAIL, itemstack);
 				}else{
-					if(!worldIn.isRemote){
-						worldIn.addEntity(entityboat);
+					if(worldIn.isClientSide){
+						worldIn.addFreshEntity(entityboat);
 					}
-					
+
 					if(!playerIn.isCreative()){
 						itemstack.shrink(1);
 					}
-					
+
 					// playerIn.addStat(net.minecraft.stats.Stats.CUSTOM.get(getRegistryName()));
-					return new ActionResult<ItemStack>(ActionResultType.SUCCESS, itemstack);
+					return new InteractionResultHolder<ItemStack>(InteractionResult.SUCCESS, itemstack);
 				}
 			}
 		}
-		
-		return new ActionResult<ItemStack>(ActionResultType.PASS, itemstack);
+
+		return new InteractionResultHolder<ItemStack>(InteractionResult.PASS, itemstack);
 	}
 	
 	protected NonNullList<ItemStack> getContainedItems(ItemStack stack){
@@ -202,9 +204,9 @@ public class MotorboatItem extends IPItemBase implements IUpgradeableTool{
 	@Override
 	public void finishUpgradeRecalculation(ItemStack stack){
 	}
-	
+
 	@Override
-	public Slot[] getWorkbenchSlots(Container container, ItemStack stack, World world, Supplier<PlayerEntity> getPlayer, IItemHandler inv){
+	public Slot[] getWorkbenchSlots(AbstractContainerMenu container, ItemStack stack, Level world, Supplier<Player> getPlayer, IItemHandler inv){
 		if(inv != null){
 			return new Slot[]{
 					new IESlot.Upgrades(container, inv, 0, 78, 35 - 5, UPGRADE_TYPE, stack, true, world, getPlayer),
@@ -218,14 +220,14 @@ public class MotorboatItem extends IPItemBase implements IUpgradeableTool{
 	
 	@OnlyIn(Dist.CLIENT)
 	@Override
-	public void addInformation(ItemStack stack, World worldIn, List<ITextComponent> tooltip, ITooltipFlag flagIn){
+	public void appendHoverText(@NotNull ItemStack stack, Level worldIn, @NotNull List<Component> tooltip, @NotNull TooltipFlag flagIn){
 		if(ItemNBTHelper.hasKey(stack, "tank")){
 			FluidStack fs = FluidStack.loadFluidStackFromNBT(ItemNBTHelper.getTagCompound(stack, "tank"));
 			if(fs != null){
-				tooltip.add(((IFormattableTextComponent) fs.getDisplayName()).appendString(": " + fs.getAmount() + "mB").mergeStyle(TextFormatting.GRAY));
+				tooltip.add(((TextComponent) fs.getDisplayName()).append(": " + fs.getAmount() + "mB").withStyle(ChatFormatting.GRAY));
 			}
 		}
 		
-		super.addInformation(stack, worldIn, tooltip, flagIn);
+		super.appendHoverText(stack, worldIn, tooltip, flagIn);
 	}
 }

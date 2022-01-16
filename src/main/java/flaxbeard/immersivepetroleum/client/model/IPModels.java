@@ -1,11 +1,5 @@
 package flaxbeard.immersivepetroleum.client.model;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Supplier;
-
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.client.model.ModelLubricantPipes.Crusher;
 import flaxbeard.immersivepetroleum.client.model.ModelLubricantPipes.Excavator;
@@ -15,6 +9,12 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
 import net.minecraftforge.fml.event.lifecycle.FMLConstructModEvent;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Supplier;
 
 /** A central place for all of ImmersivePetroleums Models that arent OBJ's */
 @Mod.EventBusSubscriber(modid = ImmersivePetroleum.MODID, value = Dist.CLIENT, bus = Bus.MOD)
@@ -36,7 +36,7 @@ public class IPModels{
 	
 	/**
 	 * @param id The String-ID of the Model.
-	 * @param constructor The model constructor
+	 * @param model The model constructor
 	 */
 	public static void add(String id, IPModel model){
 		if(MODELS.containsKey(id)){

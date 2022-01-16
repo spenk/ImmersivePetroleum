@@ -1,21 +1,19 @@
 package flaxbeard.immersivepetroleum.common.util.compat.crafttweaker;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
+import com.blamejared.crafttweaker.api.CraftTweakerAPI;
+import com.blamejared.crafttweaker.api.annotation.ZenRegister;
+import com.blamejared.crafttweaker.api.fluid.IFluidStack;
+import flaxbeard.immersivepetroleum.api.crafting.pumpjack.PumpjackHandler;
+import flaxbeard.immersivepetroleum.api.crafting.pumpjack.PumpjackHandler.ReservoirType;
+import net.minecraft.ResourceLocationException;
+import net.minecraft.resources.ResourceLocation;
 import org.openzen.zencode.java.ZenCodeType.Constructor;
 import org.openzen.zencode.java.ZenCodeType.Method;
 import org.openzen.zencode.java.ZenCodeType.Name;
 
-import com.blamejared.crafttweaker.api.CraftTweakerAPI;
-import com.blamejared.crafttweaker.api.annotations.ZenRegister;
-import com.blamejared.crafttweaker.api.fluid.IFluidStack;
-
-import flaxbeard.immersivepetroleum.api.crafting.pumpjack.PumpjackHandler;
-import flaxbeard.immersivepetroleum.api.crafting.pumpjack.PumpjackHandler.ReservoirType;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.ResourceLocationException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @ZenRegister
 @Name("mods.immersivepetroleum.ReservoirRegistry")
@@ -28,17 +26,17 @@ public class ReservoirTweaker{
 				.collect(Collectors.toList());
 		
 		if(test.size() > 1){
-			CraftTweakerAPI.logError("§cMultiple results for \"%s\"§r", name);
+			CraftTweakerAPI.LOGGER.error("§cMultiple results for \"%s\"§r", name);
 		}else if(test.size() == 1){
 			ResourceLocation id = test.get(0);
 			if(PumpjackHandler.reservoirs.containsKey(id)){
 				PumpjackHandler.reservoirs.remove(id);
 				return true;
 			}else{
-				CraftTweakerAPI.logError("§c%s does not exist, or was already removed.§r", id);
+				CraftTweakerAPI.LOGGER.error("§c%s does not exist, or was already removed.§r", id);
 			}
 		}else{
-			CraftTweakerAPI.logInfo("\"%s\" does not exist or could not be found.", name);
+			CraftTweakerAPI.LOGGER.error("\"%s\" does not exist or could not be found.", name);
 		}
 		
 		return false;
@@ -68,19 +66,19 @@ public class ReservoirTweaker{
 		@Constructor
 		public ReservoirBuilder(IFluidStack fluid, int minSize, int maxSize, int traceAmount, int weight){
 			if(fluid == null){
-				CraftTweakerAPI.logError("§cReservoir fluid can not be null!§r");
+				CraftTweakerAPI.LOGGER.error("§cReservoir fluid can not be null!§r");
 				this.isValid = false;
 			}
 			if(minSize <= 0){
-				CraftTweakerAPI.logError("§cReservoir minSize has to be at least 1mb!§r");
+				CraftTweakerAPI.LOGGER.error("§cReservoir minSize has to be at least 1mb!§r");
 				this.isValid = false;
 			}
 			if(maxSize < minSize){
-				CraftTweakerAPI.logError("§cReservoir maxSize can not be smaller than minSize!§r");
+				CraftTweakerAPI.LOGGER.error("§cReservoir maxSize can not be smaller than minSize!§r");
 				this.isValid = false;
 			}
 			if(weight <= 1){
-				CraftTweakerAPI.logError("§cReservoir weight has to be greater than or equal to 1!§r");
+				CraftTweakerAPI.LOGGER.error("§cReservoir weight has to be greater than or equal to 1!§r");
 				this.isValid = false;
 			}
 			
@@ -98,7 +96,7 @@ public class ReservoirTweaker{
 				try{
 					list.add(new ResourceLocation(names[i]));
 				}catch(ResourceLocationException e){
-					CraftTweakerAPI.logError("§caddDimension: %s§r", e.getMessage());
+					CraftTweakerAPI.LOGGER.error("§caddDimension: %s§r", e.getMessage());
 				}
 			}
 			
@@ -118,7 +116,7 @@ public class ReservoirTweaker{
 				try{
 					list.add(new ResourceLocation(names[i]));
 				}catch(ResourceLocationException e){
-					CraftTweakerAPI.logError("§caddBiome: %s§r", e.getMessage());
+					CraftTweakerAPI.LOGGER.error("§caddBiome: %s§r", e.getMessage());
 				}
 			}
 			
@@ -134,7 +132,7 @@ public class ReservoirTweaker{
 		@Method
 		public void build(String name){
 			if(name.isEmpty()){
-				CraftTweakerAPI.logError("§cReservoir name can not be empty string!§r");
+				CraftTweakerAPI.LOGGER.error("§cReservoir name can not be empty string!§r");
 				this.isValid = false;
 			}
 			
@@ -160,7 +158,7 @@ public class ReservoirTweaker{
 					
 					PumpjackHandler.addReservoir(id, type);
 				}else{
-					CraftTweakerAPI.logError("§cReservoir %s already exists!§r", name);
+					CraftTweakerAPI.LOGGER.error("§cReservoir %s already exists!§r", name);
 				}
 			}
 		}

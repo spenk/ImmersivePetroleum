@@ -1,18 +1,10 @@
 package flaxbeard.immersivepetroleum;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-
 import flaxbeard.immersivepetroleum.api.crafting.pumpjack.PumpjackHandler;
 import flaxbeard.immersivepetroleum.client.ClientProxy;
-import flaxbeard.immersivepetroleum.common.CommonEventHandler;
-import flaxbeard.immersivepetroleum.common.CommonProxy;
-import flaxbeard.immersivepetroleum.common.IPContent;
+import flaxbeard.immersivepetroleum.common.*;
 import flaxbeard.immersivepetroleum.common.IPContent.Fluids;
-import flaxbeard.immersivepetroleum.common.IPSaveData;
-import flaxbeard.immersivepetroleum.common.IPTileTypes;
 import flaxbeard.immersivepetroleum.common.cfg.IPClientConfig;
 import flaxbeard.immersivepetroleum.common.cfg.IPCommonConfig;
 import flaxbeard.immersivepetroleum.common.cfg.IPServerConfig;
@@ -21,25 +13,27 @@ import flaxbeard.immersivepetroleum.common.crafting.Serializers;
 import flaxbeard.immersivepetroleum.common.network.IPPacketHandler;
 import flaxbeard.immersivepetroleum.common.util.commands.ReservoirCommand;
 import flaxbeard.immersivepetroleum.common.util.loot.IPLootFunctions;
-import net.minecraft.command.CommandSource;
-import net.minecraft.command.Commands;
-import net.minecraft.item.ItemGroup;
-import net.minecraft.item.ItemStack;
-import net.minecraft.world.World;
-import net.minecraft.world.server.ServerWorld;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.server.ServerAboutToStartEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
-import net.minecraftforge.fml.event.server.FMLServerAboutToStartEvent;
-import net.minecraftforge.fml.event.server.FMLServerStartedEvent;
-import net.minecraftforge.fml.event.server.FMLServerStartingEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 
 @Mod(ImmersivePetroleum.MODID)
 public class ImmersivePetroleum{
@@ -47,10 +41,10 @@ public class ImmersivePetroleum{
 	
 	public static final Logger log = LogManager.getLogger(MODID);
 	
-	public static final ItemGroup creativeTab = new ItemGroup(MODID){
+	public static final CreativeModeTab creativeTab = new CreativeModeTab(MODID){
 		@Override
-		public ItemStack createIcon(){
-			return new ItemStack(Fluids.crudeOil.getFilledBucket());
+		public @NotNull ItemStack makeIcon() {
+			return new ItemStack(Fluids.crudeOil.getBucket());
 		}
 	};
 	
@@ -113,16 +107,16 @@ public class ImmersivePetroleum{
 		proxy.completed();
 	}
 	
-	public void serverAboutToStart(FMLServerAboutToStartEvent event){
+	public void serverAboutToStart(ServerAboutToStartEvent event){
 		proxy.serverAboutToStart();
 	}
 	
-	public void serverStarting(FMLServerStartingEvent event){
+	public void serverStarting(ServerStartingEvent event){
 		proxy.serverStarting();
 	}
 	
 	public void registerCommand(RegisterCommandsEvent event){
-		LiteralArgumentBuilder<CommandSource> ip = Commands.literal("ip");
+		LiteralArgumentBuilder<CommandSourceStack> ip = Commands.literal("ip");
 		
 		ip.then(ReservoirCommand.create());
 		
@@ -133,12 +127,12 @@ public class ImmersivePetroleum{
 		event.addListener(new RecipeReloadListener(event.getDataPackRegistries()));
 	}
 	
-	public void serverStarted(FMLServerStartedEvent event){
+	public void serverStarted(ServerStartedEvent event){
 		proxy.serverStarted();
 		
-		ServerWorld world = event.getServer().getWorld(World.OVERWORLD);
-		if(!world.isRemote){
-			IPSaveData worldData = world.getSavedData().getOrCreate(IPSaveData::new, IPSaveData.dataName);
+		ServerLevel world = event.getServer().overworld();
+		if(!world.isClientSide){
+			IPSaveData worldData = world.getDataStorage().computeIfAbsent(IPSaveData::new, IPSaveData::new, IPSaveData.dataName);
 			IPSaveData.setInstance(worldData);
 		}
 		

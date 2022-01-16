@@ -1,28 +1,25 @@
 package flaxbeard.immersivepetroleum.common.gui;
 
-import static flaxbeard.immersivepetroleum.common.blocks.tileentities.DistillationTowerTileEntity.INV_0;
-import static flaxbeard.immersivepetroleum.common.blocks.tileentities.DistillationTowerTileEntity.INV_1;
-import static flaxbeard.immersivepetroleum.common.blocks.tileentities.DistillationTowerTileEntity.INV_2;
-import static flaxbeard.immersivepetroleum.common.blocks.tileentities.DistillationTowerTileEntity.INV_3;
-import static flaxbeard.immersivepetroleum.common.blocks.tileentities.DistillationTowerTileEntity.TANK_INPUT;
-
 import flaxbeard.immersivepetroleum.api.crafting.DistillationRecipe;
 import flaxbeard.immersivepetroleum.common.blocks.tileentities.DistillationTowerTileEntity;
 import flaxbeard.immersivepetroleum.common.gui.IPSlot.FluidContainer.FluidFilter;
 import flaxbeard.immersivepetroleum.common.multiblocks.DistillationTowerMultiblock;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.container.Slot;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
 
+import static flaxbeard.immersivepetroleum.common.blocks.tileentities.DistillationTowerTileEntity.*;
+
 public class DistillationTowerContainer extends MultiblockAwareGuiContainer<DistillationTowerTileEntity>{
-	public DistillationTowerContainer(int id, PlayerInventory playerInventory, final DistillationTowerTileEntity tile){
-		super(tile, id, DistillationTowerMultiblock.INSTANCE);
+	public DistillationTowerContainer(MenuType<?> menu, int id, Inventory playerInventory, final DistillationTowerTileEntity tile){
+		super(menu, tile, id, DistillationTowerMultiblock.INSTANCE);
 		
 		addSlot(new IPSlot(this.inv, INV_0, 12, 17){
 			@Override
-			public boolean isItemValid(ItemStack stack){
+			public boolean mayPlace(ItemStack stack){
 				return FluidUtil.getFluidHandler(stack).map(h -> {
 					if(h.getTanks() <= 0){
 						return false;

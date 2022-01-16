@@ -1,26 +1,25 @@
 package flaxbeard.immersivepetroleum.api.crafting;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-
-import javax.annotation.Nonnull;
-
 import blusunrize.immersiveengineering.api.crafting.FluidTagInput;
 import blusunrize.immersiveengineering.api.crafting.IERecipeSerializer;
 import blusunrize.immersiveengineering.api.crafting.IngredientWithSize;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.common.cfg.IPServerConfig;
 import flaxbeard.immersivepetroleum.common.crafting.Serializers;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipeType;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.NonNullList;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.fluids.FluidStack;
 
+import javax.annotation.Nonnull;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+
 public class CokerUnitRecipe extends IPMultiblockRecipe{
-	public static final IRecipeType<CokerUnitRecipe> TYPE = IRecipeType.register(ImmersivePetroleum.MODID + ":cokerunit");
+	public static final RecipeType<CokerUnitRecipe> TYPE = RecipeType.register(ImmersivePetroleum.MODID + ":cokerunit");
 	
 	public static Map<ResourceLocation, CokerUnitRecipe> recipes = new HashMap<>();
 	
@@ -107,7 +106,7 @@ public class CokerUnitRecipe extends IPMultiblockRecipe{
 	}
 	
 	@Override
-	public NonNullList<ItemStack> getActualItemOutputs(TileEntity tile){
+	public NonNullList<ItemStack> getActualItemOutputs(BlockEntity tile){
 		NonNullList<ItemStack> list = NonNullList.create();
 		list.add(this.outputItem);
 		return list;

@@ -1,19 +1,18 @@
 package flaxbeard.immersivepetroleum.api.energy;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.common.cfg.ConfigUtils;
 import flaxbeard.immersivepetroleum.common.cfg.IPServerConfig;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.fml.config.ModConfig.ModConfigEvent;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-public class FuelHandler{
+import java.util.HashMap;
+import java.util.Map;
+
+public class FuelHandler {
 	protected static final Logger log = LogManager.getLogger(ImmersivePetroleum.MODID + "/FuelHandler");
 	
 	static final Map<ResourceLocation, Values> portablegen = new HashMap<>();

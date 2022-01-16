@@ -1,70 +1,70 @@
 package flaxbeard.immersivepetroleum.common.fluids;
 
+import flaxbeard.immersivepetroleum.common.CommonEventHandler;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FireBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Material;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
 
-import flaxbeard.immersivepetroleum.common.CommonEventHandler;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.FireBlock;
-import net.minecraft.block.material.Material;
-import net.minecraft.util.Direction;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IWorldReader;
-import net.minecraft.world.World;
-
-public class NapalmFluid extends IPFluid{
+public class NapalmFluid extends IPFluid {
 	public NapalmFluid(){
 		super("napalm", 1000, 4000);
 	}
 	
 	@Override
-	protected IPFluidBlock createFluidBlock(){
-		IPFluidBlock block = new IPFluidBlock(this.source, this.fluidName){
+	protected IPFluidBlock createFluidBlock() {
+		return new IPFluidBlock(NapalmFluid.this.source, NapalmFluid.this.fluidName) {
 			@Override
-			public void onBlockAdded(BlockState state, World worldIn, BlockPos pos, BlockState oldState, boolean isMoving){
-				for(Direction facing:Direction.values()){
-					BlockPos notifyPos = pos.offset(facing);
+			public void onPlace(@NotNull BlockState state, @NotNull Level worldIn, @NotNull BlockPos pos, @NotNull BlockState oldState, boolean isMoving){
+				for(Direction facing: Direction.values()){
+					BlockPos notifyPos = pos.offset(facing.getNormal());
 					if(worldIn.getBlockState(notifyPos).getBlock() instanceof FireBlock || worldIn.getBlockState(notifyPos).getMaterial() == Material.FIRE){
-						worldIn.setBlockState(pos, Blocks.FIRE.getDefaultState());
+						worldIn.setBlockAndUpdate(pos, Blocks.FIRE.defaultBlockState());
 						break;
 					}
 				}
-				super.onBlockAdded(state, worldIn, pos, oldState, isMoving);
+				super.onPlace(state, worldIn, pos, oldState, isMoving);
 			}
-			
+
 			@Override
-			public void neighborChanged(BlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos, boolean isMoving){
+			public void neighborChanged(@NotNull BlockState state, Level worldIn, @NotNull BlockPos pos, @NotNull Block blockIn, @NotNull BlockPos fromPos, boolean isMoving){
 				if(worldIn.getBlockState(fromPos).getBlock() instanceof FireBlock || worldIn.getBlockState(fromPos).getMaterial() == Material.FIRE){
-					ResourceLocation d = worldIn.getDimensionKey().getRegistryName();
+					ResourceLocation d = worldIn.dimension().getRegistryName();
 					if(!CommonEventHandler.napalmPositions.containsKey(d) || !CommonEventHandler.napalmPositions.get(d).contains(fromPos)){
 						processFire(worldIn, pos);
 					}
 				}
-				
+
 				super.neighborChanged(state, worldIn, pos, blockIn, fromPos, isMoving);
 			}
 		};
-		return block;
 	}
 	
 	@Override
-	public int getTickRate(IWorldReader p_205569_1_){
+	public int getTickDelay(@NotNull LevelReader p_205569_1_){
 		return 10;
 	}
 	
-	public void processFire(World world, BlockPos pos){
-		ResourceLocation d = world.getDimensionKey().getRegistryName();
+	public void processFire(Level world, BlockPos pos){
+		ResourceLocation d = world.dimension().getRegistryName();
 		if(!CommonEventHandler.napalmPositions.containsKey(d)){
 			CommonEventHandler.napalmPositions.put(d, new ArrayList<>());
 		}
 		CommonEventHandler.napalmPositions.get(d).add(pos);
 		
-		world.setBlockState(pos, Blocks.FIRE.getDefaultState(), 3);
+		world.setBlock(pos, Blocks.FIRE.defaultBlockState(), 3);
 		
 		for(Direction facing:Direction.values()){
-			BlockPos notifyPos = pos.offset(facing);
+			BlockPos notifyPos = pos.offset(facing.getNormal());
 			Block block = world.getBlockState(notifyPos).getBlock();
 			if(block == this.block){
 				CommonEventHandler.napalmPositions.get(d).add(notifyPos);

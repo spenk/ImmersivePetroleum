@@ -1,60 +1,32 @@
 buildscript {
 	repositories {
-		maven { url = 'https://files.minecraftforge.net/maven' }
-		jcenter()
+		// These repositories are only for Gradle plugins, put any other repositories in the repository block further below
+		maven { url = 'https://maven.minecraftforge.net' }
 		mavenCentral()
 	}
 	dependencies {
-		classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '4.1+', changing: true
+		classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
 	}
 }
 apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
-sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
 //----------------------------------------------------------------------------------------------------------------------
 
-version = '3.3.0-10'
+version = '3.4.0-1'
 group = 'flaxbeard.immersivepetroleum'
-archivesBaseName = 'ImmersivePetroleum-1.16.5'
+archivesBaseName = 'ImmersivePetroleum-1.18.1'
 
-repositories {
-	maven {	name = "BlameJared";	url = "https://maven.blamejared.com/" }         // IE & CT Files
-	maven { name = "DVS1 Maven FS"; url = "https://dvs1.progwml6.com/files/maven" } // JEI & Tinkers Files
-	maven { url = 'https://maven.latmod.com/' }                                     // Needed for JEI
-	
-	flatDir { dirs 'flatdir' }
-}
-
-sourceSets {
-	main {
-		resources {
-			srcDirs = [
-				"$rootDir/src/main/resources",
-				"$rootDir/src/generated/resources"
-			]
-		}
-	}
-	datagen {
-		compileClasspath += main.compileClasspath
-		runtimeClasspath += main.runtimeClasspath
-		compileClasspath += main.output
-		runtimeClasspath += main.output
-	}
-}
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 minecraft {
-	mappings channel: 'snapshot', version: '20210309-1.16.5'
-	accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
-	
+	mappings channel: 'official', version: '1.18.1'
 	runs {
 		client {
 			workingDirectory project.file('run')
-			property 'forge.logging.markers', ''
-			property 'forge.logging.console.level', 'info'
-			property 'fml.earlyprogresswindow', 'false'
-			property 'mixin.env.remapRefMap', 'true'
-			property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+			property 'forge.logging.markers', 'REGISTRIES'
+			property 'forge.logging.console.level', 'debug'
+
 			mods {
 				immersivepetroleum {
 					source sourceSets.main
@@ -64,14 +36,9 @@ minecraft {
 
 		server {
 			workingDirectory project.file('run')
-			property 'forge.logging.markers', ''
-			property 'forge.logging.console.level', 'info'
-			property 'fml.earlyprogresswindow', 'false'
-			property 'mixin.env.remapRefMap', 'true'
-			property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-			
-			arg '-nogui'
-			
+			property 'forge.logging.markers', 'REGISTRIES'
+			property 'forge.logging.console.level', 'debug'
+
 			mods {
 				immersivepetroleum {
 					source sourceSets.main
@@ -81,40 +48,34 @@ minecraft {
 
 		data {
 			workingDirectory project.file('run')
-			property 'forge.logging.markers', ''
-			property 'forge.logging.console.level', 'info'
-			property 'fml.earlyprogresswindow', 'false'
-			property 'mixin.env.remapRefMap', 'true'
-			property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-			
-			args '--mod', 'immersivepetroleum',
-				 '--all',
-				 '--output', file('src/generated/resources/'),
-				 '--validate',
-				 '--existing', sourceSets.main.resources.srcDirs[0],
-				 '--existing-mod', 'immersiveengineering'
-			
+			property 'forge.logging.markers', 'REGISTRIES'
+			property 'forge.logging.console.level', 'debug'
+			args '--mod', 'immersivepetroleum', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+
 			mods {
 				immersivepetroleum {
 					source sourceSets.main
-					source sourceSets.datagen
 				}
 			}
 		}
 	}
 }
 
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+	maven {	name = "BlameJared";	url = "https://maven.blamejared.com/" }
+	maven { name = "DVS1 Maven FS"; url = "https://dvs1.progwml6.com/files/maven" }
+	flatDir { dirs 'flatdir' }
+}
+
 dependencies {
-	minecraft "net.minecraftforge:forge:1.16.5-36.2.0"
-	
-	compile fg.deobf("blusunrize.immersiveengineering:ImmersiveEngineering:1.16.5-5.0.6-141")
-	//compile fg.deobf("blusunrize.immersiveengineering:ImmersiveEngineering:1.16.5-5.0.0-135:api")
-	datagenCompile fg.deobf("blusunrize.immersiveengineering:ImmersiveEngineering:1.16.5-5.0.6-141:datagen")
-	
-	compile fg.deobf(group: "com.blamejared.crafttweaker", name: "CraftTweaker-1.16.5", version: "7.1.0.103")
-	
-	runtimeOnly fg.deobf("mezz.jei:jei-1.16.5:7.6.4.88")
-	compileOnly fg.deobf("mezz.jei:jei-1.16.5:7.6.4.88:api")
+	minecraft 'net.minecraftforge:forge:1.18.1-39.0.64'
+	compileOnly fg.deobf("blusunrize.immersiveengineering:ImmersiveEngineering:1.18.1-7.1.1-pre.9")
+	compileOnly fg.deobf("blusunrize.immersiveengineering:ImmersiveEngineering:1.18.1-7.1.1-pre.9:datagen")
+	compileOnly fg.deobf(group: "com.blamejared.crafttweaker", name: "CraftTweaker-forge-1.18.1", version: "9.0.0+9")
+	runtimeOnly fg.deobf("mezz.jei:jei-1.18.1:9.1.0.41")
+	compileOnly fg.deobf("mezz.jei:jei-1.18.1:9.1.0.41:api")
 }
 
 processResources {
@@ -131,6 +92,35 @@ processResources {
 jar {
 	manifest {
 		attributes([
+				"Specification-Title"     : "immersivepetroleum",
+				"Specification-Vendor"    : "flaxbeard",
+				"Specification-Version"   : "1", // We are version 1 of ourselves
+				"Implementation-Title"    : project.name,
+				"Implementation-Version"  : project.jar.archiveVersion,
+				"Implementation-Vendor"   : "flaxbeard",
+				"Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+		])
+	}
+}
+
+jar.finalizedBy('reobfJar')
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			artifact jar
+		}
+	}
+	repositories {
+		maven {
+			url "file://${project.projectDir}/mcmodsrepo"
+		}
+	}
+}
+
+jar {
+	manifest {
+		attributes([
 			"Specification-Title": "immersivepetroleum",
 			"Specification-Vendor": "flaxbeard",
 			"Specification-Version": "1",
@@ -140,12 +130,4 @@ jar {
 			"Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
 		])
 	}
-}
-
-def reobfFile = file("$buildDir/reobfJar/output.jar")
-def reobfArtifact = artifacts.add('default', reobfFile) { type 'jar'; builtBy 'reobfJar'; }
-
-publishing {
-	publications { mavenJava(MavenPublication) { artifact reobfArtifact } }
-	repositories { maven { url "file:///${project.projectDir}/mcmodsrepo" } }
 }

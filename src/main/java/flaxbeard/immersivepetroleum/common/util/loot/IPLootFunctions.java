@@ -1,10 +1,10 @@
 package flaxbeard.immersivepetroleum.common.util.loot;
 
-import net.minecraft.loot.ILootSerializer;
-import net.minecraft.loot.LootEntry;
-import net.minecraft.loot.LootPoolEntryType;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.registry.Registry;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.storage.loot.Serializer;
+import net.minecraft.world.level.storage.loot.entries.LootPoolEntryContainer;
+import net.minecraft.world.level.storage.loot.entries.LootPoolEntryType;
 
 public class IPLootFunctions{
 	public static LootPoolEntryType tileDrop;
@@ -13,7 +13,7 @@ public class IPLootFunctions{
 		tileDrop = registerEntry(IPTileDropLootEntry.ID, new IPTileDropLootEntry.Serializer());
 	}
 	
-	private static LootPoolEntryType registerEntry(ResourceLocation id, ILootSerializer<? extends LootEntry> serializer){
+	private static LootPoolEntryType registerEntry(ResourceLocation id, Serializer<? extends LootPoolEntryContainer> serializer){
 		return Registry.register(Registry.LOOT_POOL_ENTRY_TYPE, id, new LootPoolEntryType(serializer));
 	}
 }

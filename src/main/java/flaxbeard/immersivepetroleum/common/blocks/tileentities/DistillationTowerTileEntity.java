@@ -1,41 +1,33 @@
 package flaxbeard.immersivepetroleum.common.blocks.tileentities;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-
-import javax.annotation.Nonnull;
-
-import org.apache.commons.lang3.tuple.Pair;
-
-import com.google.common.collect.ImmutableSet;
-
 import blusunrize.immersiveengineering.api.IEEnums.IOSideConfig;
 import blusunrize.immersiveengineering.api.utils.shapes.CachedShapesWithTransform;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IBlockBounds;
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IInteractionObjectIE;
-import blusunrize.immersiveengineering.common.blocks.generic.PoweredMultiblockTileEntity;
+import blusunrize.immersiveengineering.common.blocks.generic.PoweredMultiblockBlockEntity;
+import blusunrize.immersiveengineering.common.blocks.multiblocks.process.MultiblockProcess;
+import blusunrize.immersiveengineering.common.blocks.multiblocks.process.MultiblockProcessInMachine;
+import blusunrize.immersiveengineering.common.register.IEContainerTypes;
 import blusunrize.immersiveengineering.common.util.Utils;
 import blusunrize.immersiveengineering.common.util.inventory.MultiFluidTank;
+import com.google.common.collect.ImmutableSet;
 import flaxbeard.immersivepetroleum.api.crafting.DistillationRecipe;
-import flaxbeard.immersivepetroleum.common.IPTileTypes;
 import flaxbeard.immersivepetroleum.common.multiblocks.DistillationTowerMultiblock;
 import flaxbeard.immersivepetroleum.common.util.FluidHelper;
-import net.minecraft.entity.item.ItemEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.ItemStackHelper;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityType;
-import net.minecraft.util.Direction;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.shapes.ISelectionContext;
-import net.minecraft.util.math.shapes.VoxelShape;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.NonNullList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.fluids.FluidActionResult;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
@@ -46,8 +38,16 @@ import net.minecraftforge.fluids.capability.templates.FluidTank;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
+import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.Nullable;
 
-public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<DistillationTowerTileEntity, DistillationRecipe> implements IInteractionObjectIE, IBlockBounds{
+import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+
+public class DistillationTowerTileEntity extends PoweredMultiblockBlockEntity<DistillationTowerTileEntity, DistillationRecipe> implements IInteractionObjectIE, IBlockBounds{
 	/** Input Tank ID */
 	public static final int TANK_INPUT = 0;
 	
@@ -86,17 +86,12 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 	private int cooldownTicks = 0;
 	private boolean wasActive = false;
 	
-	public DistillationTowerTileEntity(){
-		super(DistillationTowerMultiblock.INSTANCE, 16000, true, null);
+	public DistillationTowerTileEntity(BlockEntityType<DistillationTowerTileEntity> type, BlockPos pos, BlockState state){
+		super(DistillationTowerMultiblock.INSTANCE, 16000, true, type, pos, state);
 	}
 	
 	@Override
-	public TileEntityType<?> getType(){
-		return IPTileTypes.TOWER.get();
-	}
-	
-	@Override
-	public void readCustomNBT(CompoundNBT nbt, boolean descPacket){
+	public void readCustomNBT(CompoundTag nbt, boolean descPacket){
 		super.readCustomNBT(nbt, descPacket);
 		tanks[0].readFromNBT(nbt.getCompound("tank0"));
 		tanks[1].readFromNBT(nbt.getCompound("tank1"));
@@ -108,19 +103,19 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 	}
 	
 	@Override
-	public void writeCustomNBT(CompoundNBT nbt, boolean descPacket){
+	public void writeCustomNBT(CompoundTag nbt, boolean descPacket){
 		super.writeCustomNBT(nbt, descPacket);
-		nbt.put("tank0", tanks[TANK_INPUT].writeToNBT(new CompoundNBT()));
-		nbt.put("tank1", tanks[TANK_OUTPUT].writeToNBT(new CompoundNBT()));
+		nbt.put("tank0", tanks[TANK_INPUT].writeToNBT(new CompoundTag()));
+		nbt.put("tank1", tanks[TANK_OUTPUT].writeToNBT(new CompoundTag()));
 		nbt.putInt("cooldownTicks", cooldownTicks);
 		if(!descPacket){
 			nbt.put("inventory", writeInventory(this.inventory));
 		}
 	}
 	
-	protected NonNullList<ItemStack> readInventory(CompoundNBT nbt){
+	protected NonNullList<ItemStack> readInventory(CompoundTag nbt){
 		NonNullList<ItemStack> list = NonNullList.create();
-		ItemStackHelper.loadAllItems(nbt, list);
+		ContainerHelper.loadAllItems(nbt, list);
 		
 		if(list.size() == 0){ // Incase it loaded none
 			list = this.inventory.size() == 4 ? this.inventory : NonNullList.withSize(4, ItemStack.EMPTY);
@@ -131,8 +126,8 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 		return list;
 	}
 	
-	protected CompoundNBT writeInventory(NonNullList<ItemStack> list){
-		return ItemStackHelper.saveAllItems(new CompoundNBT(), list);
+	protected CompoundTag writeInventory(NonNullList<ItemStack> list){
+		return ContainerHelper.saveAllItems(new CompoundTag(), list);
 	}
 	
 	@Override
@@ -143,7 +138,7 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 		
 		checkForNeedlessTicking();
 		
-		if(this.world.isRemote || isDummy()){
+		if(!this.level.isClientSide || isDummy()){
 			return;
 		}
 		
@@ -228,7 +223,7 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 			}
 			
 			BlockPos outPos = getBlockPosForPos(Fluid_OUT).offset(getFacing().getOpposite());
-			update |= FluidUtil.getFluidHandler(this.world, outPos, getFacing()).map(output -> {
+			update |= FluidUtil.getFluidHandler(this.level, outPos, getFacing()).map(output -> {
 				boolean ret = false;
 				if(this.tanks[TANK_OUTPUT].fluids.size() > 0){
 					List<FluidStack> toDrain = new ArrayList<>();
@@ -260,7 +255,7 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 	}
 	
 	/**
-	 * FluidStack based version of {@link blusunrize.immersiveengineering.common.util.Utils#fillFluidContainer(IFluidHandler, ItemStack, ItemStack, PlayerEntity)}
+	 * FluidStack based version of {@link blusunrize.immersiveengineering.common.util.Utils#fillFluidContainer(IFluidHandler, ItemStack, ItemStack, Player)}
 	 * minus the useless bits :D
 	 */
 	static ItemStack fillFluidContainer(IFluidTank tank, FluidStack fluid, ItemStack containerIn, ItemStack containerOut){
@@ -286,7 +281,7 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 	}
 	
 	/** 
-	 * FluidStack based version of {@link net.minecraftforge.fluids.FluidUtil#tryFillContainer(ItemStack, IFluidHandler, int, PlayerEntity, boolean)}
+	 * FluidStack based version of {@link net.minecraftforge.fluids.FluidUtil#tryFillContainer(ItemStack, IFluidHandler, int, Player, boolean)}
 	 * minus the useless bits :D
 	 */
 	static FluidActionResult tryFillContainer(IFluidTank tank, FluidStack fluidSource, @Nonnull ItemStack container, boolean doFill){
@@ -333,9 +328,14 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 	public IInteractionObjectIE getGuiMaster(){
 		return master();
 	}
-	
+
 	@Override
-	public boolean canUseGui(PlayerEntity player){
+	public IEContainerTypes.BEContainer getContainerType() {
+		return null;
+	}
+
+	@Override
+	public boolean canUseGui(Player player){
 		return this.formed;
 	}
 	
@@ -395,10 +395,10 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 	
 	@Override
 	public void doProcessOutput(ItemStack output){
-		Direction outputdir = (getIsMirrored() ? getFacing().rotateY() : getFacing().rotateYCCW());
+		Direction outputdir = (getIsMirrored() ? getFacing().getClockWise() : getFacing().getCounterClockWise());
 		BlockPos outputpos = getBlockPosForPos(Item_OUT).offset(outputdir);
 		
-		TileEntity te = world.getTileEntity(outputpos);
+		BlockEntity te = level.getBlockEntity(outputpos);
 		if(te!=null){
 			IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, outputdir.getOpposite()).orElse(null);
 			if(handler!=null){
@@ -419,9 +419,9 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 				z = outputpos.getZ() + (facing == Direction.WEST ? 0.15 : 0.85);
 			}
 			
-			ItemEntity ei = new ItemEntity(world, x, y, z, output.copy());
+			BlockEntity ei = new BlockEntity(level, x, y, z, output.copy());
 			ei.setMotion(0.075 * outputdir.getXOffset(), 0.025, 0.075 * outputdir.getZOffset());
-			world.addEntity(ei);
+			level.addFreshEntity(ei);
 		}
 	}
 	
@@ -464,7 +464,7 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 		if(master != null){
 			// Fluid Input
 			if(this.posInMultiblock.equals(Fluid_IN)){
-				if(side == null || (getIsMirrored() ? (side == getFacing().rotateYCCW()) : (side == getFacing().rotateY()))){
+				if(side == null || (getIsMirrored() ? (side == getFacing().getCounterClockWise()) : (side == getFacing().getClockWise()))){
 					return new IFluidTank[]{master.tanks[TANK_INPUT]};
 				}
 			}
@@ -480,7 +480,7 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 	@Override
 	protected boolean canFillTankFrom(int iTank, Direction side, FluidStack resource){
 		if(this.posInMultiblock.equals(Fluid_IN)){
-			if(getIsMirrored() ? (side == null || side == getFacing().rotateYCCW()) : (side == null || side == getFacing().rotateY())){
+			if(getIsMirrored() ? (side == null || side == getFacing().getCounterClockWise()) : (side == null || side == getFacing().getClockWise())){
 				DistillationTowerTileEntity master = master();
 				
 				if(master == null || master.tanks[TANK_INPUT].getFluidAmount() >= master.tanks[TANK_INPUT].getCapacity())
@@ -519,11 +519,11 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 	private static CachedShapesWithTransform<BlockPos, Pair<Direction, Boolean>> SHAPES = CachedShapesWithTransform.createForMultiblock(DistillationTowerTileEntity::getShape);
 	
 	@Override
-	public VoxelShape getBlockBounds(ISelectionContext ctx){
+	public VoxelShape getBlockBounds(@Nullable CollisionContext ctx){
 		return SHAPES.get(this.posInMultiblock, Pair.of(getFacing(), getIsMirrored()));
 	}
 	
-	private static List<AxisAlignedBB> getShape(BlockPos posInMultiblock){
+	private static List<AABB> getShape(BlockPos posInMultiblock){
 		final int bX = posInMultiblock.getX();
 		final int bY = posInMultiblock.getY();
 		final int bZ = posInMultiblock.getZ();
@@ -532,39 +532,39 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 		if(bY < 2){
 			if(bX == 0 && bZ == 3){
 				if(bY == 1){ // Actual Input
-					return Arrays.asList(new AxisAlignedBB(0.0, 0.0, 0.0, 0.5, 1.0, 1.0));
+					return Arrays.asList(new AABB(0.0, 0.0, 0.0, 0.5, 1.0, 1.0));
 				}else{ // Input Legs
-					return Arrays.asList(new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 0.5, 1.0), new AxisAlignedBB(0.125, 0.0, 0.75, 0.375, 1.0, 0.875), new AxisAlignedBB(0.125, 0.0, 0.125, 0.375, 1.0, 0.25));
+					return Arrays.asList(new AABB(0.0, 0.0, 0.0, 1.0, 0.5, 1.0), new AABB(0.125, 0.0, 0.75, 0.375, 1.0, 0.875), new AABB(0.125, 0.0, 0.125, 0.375, 1.0, 0.25));
 				}
 			}
 		}
 		
 		// Pipe over Furnace
 		if(bY == 2 && bX == 3 && bZ == 2){
-			return Arrays.asList(new AxisAlignedBB(-0.0625, 0.375, 0.125, 0.0625, 1.125, 0.875), new AxisAlignedBB(0.125, 0, 0.125, 0.875, 0.125, 0.875), new AxisAlignedBB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75), new AxisAlignedBB(0.0, 0.5, 0.25, 0.75, 1.0, 0.75));
+			return Arrays.asList(new AABB(-0.0625, 0.375, 0.125, 0.0625, 1.125, 0.875), new AABB(0.125, 0, 0.125, 0.875, 0.125, 0.875), new AABB(0.25, 0.0, 0.25, 0.75, 1.0, 0.75), new AABB(0.0, 0.5, 0.25, 0.75, 1.0, 0.75));
 		}
 		
 		// Long Pipe
 		if(bY > 0 && bX == 1 && bZ == 3){
 			if(bY != 15){
-				List<AxisAlignedBB> list = new ArrayList<>();
-				list.add(new AxisAlignedBB(0.1875, 0.0, 0.1875, 0.8125, 1.0, 0.8125));
+				List<AABB> list = new ArrayList<>();
+				list.add(new AABB(0.1875, 0.0, 0.1875, 0.8125, 1.0, 0.8125));
 				if(bY > 0 && bY % 4 == 0){ // For pipe passing a platform
-					list.add(new AxisAlignedBB(0.0, 0.5, 0.0, 1.0, 1.0, 1.0));
+					list.add(new AABB(0.0, 0.5, 0.0, 1.0, 1.0, 1.0));
 				}
 				return list;
 			}else{ // Pipe Top Bend
-				return Arrays.asList(new AxisAlignedBB(0.1875, 0.0, -0.0625, 0.8125, 0.625, 0.8125));
+				return Arrays.asList(new AABB(0.1875, 0.0, -0.0625, 0.8125, 0.625, 0.8125));
 			}
 		}
 		
 		// Ladder
 		if(bY > 0 && bX == 2 && bZ == 0){
-			List<AxisAlignedBB> list = new ArrayList<>();
-			list.add(new AxisAlignedBB(0.0625, bY == 1 ? 0.125 : 0.0, 0.875, 0.9375, 1.0, 1.0625));
+			List<AABB> list = new ArrayList<>();
+			list.add(new AABB(0.0625, bY == 1 ? 0.125 : 0.0, 0.875, 0.9375, 1.0, 1.0625));
 			if(bY > 0 && bY % 4 == 0){
-				list.add(new AxisAlignedBB(0.0, 0.5, 0.875, 1.0, 1.0, 1.0625));
-				list.add(new AxisAlignedBB(0.0, 0.5, 0.0, 1.0, 1.0, 0.0625));
+				list.add(new AABB(0.0, 0.5, 0.875, 1.0, 1.0, 1.0625));
+				list.add(new AABB(0.0, 0.5, 0.0, 1.0, 1.0, 0.0625));
 			}
 			return list;
 		}
@@ -573,40 +573,40 @@ public class DistillationTowerTileEntity extends PoweredMultiblockTileEntity<Dis
 		if(bX > 0 && bX < 3 && bZ > 0 && bZ < 3){
 			if(bY > 0){
 				// Boiler
-				AxisAlignedBB bb = new AxisAlignedBB(0.0625, 0.0, 0.0625, 0.9375, 1.0, 0.9375);
+				AABB bb = new AABB(0.0625, 0.0, 0.0625, 0.9375, 1.0, 0.9375);
 				if(bZ == 1){
-					if(bX == 1) bb = new AxisAlignedBB(0.0625, 0.0, 0.0625, 1.0, 1.0, 1.0);
-					if(bX == 2) bb = new AxisAlignedBB(0.0, 0.0, 0.0625, 0.9375, 1.0, 1.0);
+					if(bX == 1) bb = new AABB(0.0625, 0.0, 0.0625, 1.0, 1.0, 1.0);
+					if(bX == 2) bb = new AABB(0.0, 0.0, 0.0625, 0.9375, 1.0, 1.0);
 				}else if(bZ == 2){
-					if(bX == 1) bb = new AxisAlignedBB(0.0625, 0.0, 0.0, 1.0, 1.0, 0.9375);
-					if(bX == 2) bb = new AxisAlignedBB(0.0, 0.0, 0.0, 0.9375, 1.0, 0.9375);
+					if(bX == 1) bb = new AABB(0.0625, 0.0, 0.0, 1.0, 1.0, 0.9375);
+					if(bX == 2) bb = new AABB(0.0, 0.0, 0.0, 0.9375, 1.0, 0.9375);
 				}
 				return Arrays.asList(bb);
 			}else{
 				// Below Boiler
 				return Arrays.asList(
-						new AxisAlignedBB(-0.125, 0.5, -0.125, 1.125, 1.125, 1.125),
-						new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 0.5, 1.0)
+						new AABB(-0.125, 0.5, -0.125, 1.125, 1.125, 1.125),
+						new AABB(0.0, 0.0, 0.0, 1.0, 0.5, 1.0)
 				);
 			}
 		}
 		
 		// Platforms
 		if(bY > 0 && bY % 4 == 0){
-			return Arrays.asList(new AxisAlignedBB(0.0, 0.5, 0.0, 1.0, 1.0, 1.0));
+			return Arrays.asList(new AABB(0.0, 0.5, 0.0, 1.0, 1.0, 1.0));
 		}
 		
 		// Base
 		if(bY == 0){
-			List<AxisAlignedBB> list = new ArrayList<>();
+			List<AABB> list = new ArrayList<>();
 			if((bX == 0 && bZ == 1) || (bX == 1 && bZ == 3) || (bX == 3 && bZ == 2) || (bX == 3 && bZ == 3)){
-				list.add(new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 1.0, 1.0));
+				list.add(new AABB(0.0, 0.0, 0.0, 1.0, 1.0, 1.0));
 			}else{
-				list.add(new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 0.5, 1.0));
+				list.add(new AABB(0.0, 0.0, 0.0, 1.0, 0.5, 1.0));
 			}
 			return list;
 		}
 		
-		return Arrays.asList(new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 1.0, 1.0));
+		return Arrays.asList(new AABB(0.0, 0.0, 0.0, 1.0, 1.0, 1.0));
 	}
 }

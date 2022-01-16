@@ -1,20 +1,17 @@
 package flaxbeard.immersivepetroleum.client.model;
 
-import java.util.Arrays;
-
 import com.google.common.collect.ImmutableList;
-
 import flaxbeard.immersivepetroleum.common.entity.MotorboatEntity;
-import net.minecraft.client.renderer.entity.model.SegmentedModel;
-import net.minecraft.client.renderer.model.ModelRenderer;
-import net.minecraft.entity.item.BoatEntity;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.model.ListModel;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
+import java.util.Arrays;
+
 @OnlyIn(Dist.CLIENT)
-public class ModelMotorboat extends SegmentedModel<MotorboatEntity>{
-	private final ImmutableList<ModelRenderer> list;
+public class ModelMotorboat extends ListModel<MotorboatEntity> {
+	private final ImmutableList<ModelPart> list;
 	
 	/**
 	 * Part of the model rendered to make it seem like there's no water in the
@@ -80,7 +77,7 @@ public class ModelMotorboat extends SegmentedModel<MotorboatEntity>{
 		
 		this.list = builder.build();
 	}
-	
+
 	public void refresh(){
 		motor = new ModelRenderer(this, 104, 0).setTextureSize(128, 64);
 		motor.addBox(-19.0F, -8.0F, -3, 6, 5, 6, 0.0F);
@@ -240,16 +237,19 @@ public class ModelMotorboat extends SegmentedModel<MotorboatEntity>{
 			}
 		}
 	}
-	
-	/**
-	 * Only contains the base shape
-	 */
-	@Override
-	public Iterable<ModelRenderer> getParts(){
-		return this.list;
-	}
-	
+
+
 	public ModelRenderer noWaterRenderer(){
 		return this.noWater;
+	}
+
+	@Override
+	public void setupAnim(MotorboatEntity p_102618_, float p_102619_, float p_102620_, float p_102621_, float p_102622_, float p_102623_) {
+
+	}
+
+	@Override
+	public Iterable<ModelPart> parts() {
+		return this.list;
 	}
 }

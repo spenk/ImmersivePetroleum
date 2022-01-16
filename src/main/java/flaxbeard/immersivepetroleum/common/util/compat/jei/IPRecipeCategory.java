@@ -4,9 +4,11 @@ import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.drawable.IDrawableStatic;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.recipe.category.IRecipeCategory;
-import net.minecraft.client.resources.I18n;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 
 public abstract class IPRecipeCategory<T> implements IRecipeCategory<T>{
 	public final ResourceLocation id;
@@ -20,7 +22,7 @@ public abstract class IPRecipeCategory<T> implements IRecipeCategory<T>{
 		this.recipeClass = recipeClass;
 		this.guiHelper = guiHelper;
 		this.id = id;
-		this.localizedName = I18n.format(localKey);
+		this.localizedName = I18n.get(localKey);
 	}
 	
 	public void setBackground(IDrawableStatic background){
@@ -51,8 +53,8 @@ public abstract class IPRecipeCategory<T> implements IRecipeCategory<T>{
 	}
 	
 	@Override
-	public String getTitle(){
-		return this.localizedName;
+	public Component getTitle(){
+		return new TextComponent(this.localizedName);
 	}
 	
 	@Override

@@ -1,21 +1,21 @@
 package flaxbeard.immersivepetroleum.common.blocks.metal;
 
 import flaxbeard.immersivepetroleum.common.blocks.IPBlockBase;
-import net.minecraft.block.Block;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.material.MaterialColor;
-import net.minecraft.block.material.PushReaction;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroup;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.NonNullList;
+import net.minecraft.core.NonNullList;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.material.Material;
+import net.minecraft.world.level.material.MaterialColor;
+import net.minecraft.world.level.material.PushReaction;
 
-public class BlockDummy extends IPBlockBase{
-	private static final Material Material = new Material(MaterialColor.IRON, false, false, true, true, false, false, PushReaction.BLOCK);
+public class BlockDummy extends IPBlockBase {
+	private static final net.minecraft.world.level.material.Material Material = new Material(MaterialColor.METAL, false, false, true, true, false, false, PushReaction.BLOCK);
 	
 	public BlockDummy(String name){
-		super(name, Block.Properties.create(Material).notSolid());
+		super(name, Block.Properties.of(Material).air());
 	}
 	
 	@Override
@@ -24,6 +24,6 @@ public class BlockDummy extends IPBlockBase{
 	}
 	
 	@Override
-	public void fillItemGroup(ItemGroup group, NonNullList<ItemStack> items){
+	public void fillItemCategory(CreativeModeTab group, NonNullList<ItemStack> items){
 	}
 }

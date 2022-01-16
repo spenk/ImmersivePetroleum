@@ -1,36 +1,29 @@
 package flaxbeard.immersivepetroleum.api.crafting.pumpjack;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-
-import javax.annotation.Nonnull;
-
-import blusunrize.immersiveengineering.api.DimensionChunkCoords;
 import blusunrize.immersiveengineering.api.crafting.IERecipeSerializer;
 import blusunrize.immersiveengineering.api.crafting.IESerializableRecipe;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
+import flaxbeard.immersivepetroleum.api.DimensionChunkCoords;
 import flaxbeard.immersivepetroleum.common.IPSaveData;
 import flaxbeard.immersivepetroleum.common.cfg.IPServerConfig;
 import flaxbeard.immersivepetroleum.common.crafting.Serializers;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipeType;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.nbt.INBT;
-import net.minecraft.nbt.ListNBT;
-import net.minecraft.nbt.StringNBT;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.SharedSeedRandom;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.ISeedReader;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.Biome;
-import net.minecraftforge.common.util.Constants.NBT;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.levelgen.WorldgenRandom;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.registries.ForgeRegistries;
+
+import javax.annotation.Nonnull;
+import java.util.*;
 
 public class PumpjackHandler{
 	public static Map<ResourceLocation, ReservoirType> reservoirs = new HashMap<>();
@@ -50,10 +43,10 @@ public class PumpjackHandler{
 	 * @param chunkZ Z coordinate of desired chunk
 	 * @return mB of fluid in the given reservoir
 	 */
-	public static int getFluidAmount(World world, int chunkX, int chunkZ){
-		if(world.isRemote)
+	public static int getFluidAmount(Level world, int chunkX, int chunkZ){
+		if(!world.isClientSide)
 			return 0;
-		
+
 		ReservoirWorldInfo info = getOrCreateOilWorldInfo(world, chunkX, chunkZ);
 		if(info == null || (info.capacity == 0) || info.getType() == null || info.getType().fluidLocation == null || (info.current == 0 && info.getType().replenishRate == 0))
 			return 0;
@@ -69,8 +62,8 @@ public class PumpjackHandler{
 	 * @param chunkZ Z coordinate of desired chunk
 	 * @return Fluid in given reservoir (or null if none)
 	 */
-	public static Fluid getFluid(World world, int chunkX, int chunkZ){
-		if(world.isRemote)
+	public static Fluid getFluid(Level world, int chunkX, int chunkZ){
+		if(!world.isClientSide)
 			return null;
 		
 		ReservoirWorldInfo info = getOrCreateOilWorldInfo(world, chunkX, chunkZ);
@@ -91,13 +84,13 @@ public class PumpjackHandler{
 	 * @param chunkZ Z coordinate of desired chunk
 	 * @return mB of fluid that can be extracted "residually"
 	 */
-	public static int getResidualFluid(World world, int chunkX, int chunkZ){
+	public static int getResidualFluid(Level world, int chunkX, int chunkZ){
 		ReservoirWorldInfo info = getOrCreateOilWorldInfo(world, chunkX, chunkZ);
 		
 		if(info == null || info.getType() == null || info.getType().fluidLocation == null || (info.capacity == 0) || (info.current == 0 && info.getType().replenishRate == 0))
 			return 0;
 		
-		DimensionChunkCoords coords = new DimensionChunkCoords(world.getDimensionKey(), chunkX / depositSize, chunkZ / depositSize);
+		DimensionChunkCoords coords = new DimensionChunkCoords(world.dimension(), chunkX / depositSize, chunkZ / depositSize);
 		
 		Long l = timeCache.get(coords);
 		if(l == null){
@@ -118,8 +111,8 @@ public class PumpjackHandler{
 	 * @param chunkZ Z coordinate of desired chunk
 	 * @return The OilWorldInfo corresponding w/ given chunk
 	 */
-	public static ReservoirWorldInfo getOrCreateOilWorldInfo(World world, int chunkX, int chunkZ){
-		return getOrCreateOilWorldInfo(world, new DimensionChunkCoords(world.getDimensionKey(), chunkX, chunkZ), false);
+	public static ReservoirWorldInfo getOrCreateOilWorldInfo(Level world, int chunkX, int chunkZ){
+		return getOrCreateOilWorldInfo(world, new DimensionChunkCoords(world.dimension(), chunkX, chunkZ), false);
 	}
 	
 	/**
@@ -130,15 +123,15 @@ public class PumpjackHandler{
 	 * @param force Force creation on an empty chunk
 	 * @return The OilWorldInfo corresponding w/ given chunk
 	 */
-	public static ReservoirWorldInfo getOrCreateOilWorldInfo(World world, DimensionChunkCoords coords, boolean force){
-		if(world.isRemote)
+	public static ReservoirWorldInfo getOrCreateOilWorldInfo(Level world, DimensionChunkCoords coords, boolean force){
+		if(!world.isClientSide)
 			return null;
 		
 		ReservoirWorldInfo worldInfo = reservoirsCache.get(coords);
 		if(worldInfo == null){
 			ReservoirType res = null;
 			
-			Random r = SharedSeedRandom.createSlimeChunkSpawningSeed(coords.x, coords.z, ((ISeedReader) world).getSeed(), 90210L);
+			Random r = WorldgenRandom.seedSlimeChunk(coords.x, coords.z, ((WorldGenLevel)world).getSeed(), 90210L);
 			boolean empty = (r.nextDouble() > IPServerConfig.EXTRACTION.reservoir_chance.get());
 			double size = r.nextDouble();
 			int query = r.nextInt();
@@ -147,8 +140,8 @@ public class PumpjackHandler{
 			
 			if(!empty || force){
 				ResourceLocation biome = world.getBiome(new BlockPos(coords.x << 4, 64, coords.z << 4)).getRegistryName();
-				ResourceLocation dimension = coords.dimension.getLocation();
-				ImmersivePetroleum.log.debug(coords.dimension.getLocation());
+				ResourceLocation dimension = coords.dimension.location();
+				ImmersivePetroleum.log.debug(coords.dimension.location());
 				
 				int totalWeight = getTotalWeight(dimension, biome);
 				ImmersivePetroleum.log.debug("Total Weight: " + totalWeight);
@@ -191,13 +184,13 @@ public class PumpjackHandler{
 	/**
 	 * Depletes fluid from a given chunk
 	 *
-	 * @param world World whose chunk to drain
+	 * @param level Level whose chunk to drain
 	 * @param chunkX Chunk x
 	 * @param chunkZ Chunk z
 	 * @param amount Amount of fluid in mB to drain
 	 */
-	public static void depleteFluid(World world, int chunkX, int chunkZ, int amount){
-		ReservoirWorldInfo info = getOrCreateOilWorldInfo(world, chunkX, chunkZ);
+	public static void depleteFluid(Level level, int chunkX, int chunkZ, int amount){
+		ReservoirWorldInfo info = getOrCreateOilWorldInfo(level, chunkX, chunkZ);
 		info.current = Math.max(info.current - amount, 0);
 		IPSaveData.markInstanceAsDirty();
 	}
@@ -245,7 +238,7 @@ public class PumpjackHandler{
 	}
 	
 	public static class ReservoirType extends IESerializableRecipe{
-		public static final IRecipeType<ReservoirType> TYPE = IRecipeType.register(ImmersivePetroleum.MODID + ":reservoirtype");
+		public static final RecipeType<ReservoirType> TYPE = RecipeType.register(ImmersivePetroleum.MODID + ":reservoirtype");
 		
 		public String name;
 		public ResourceLocation fluidLocation;
@@ -304,7 +297,7 @@ public class PumpjackHandler{
 			this.weight = weight;
 		}
 		
-		public ReservoirType(CompoundNBT nbt){
+		public ReservoirType(CompoundTag nbt){
 			super(ItemStack.EMPTY, TYPE, new ResourceLocation(nbt.getString("id")));
 			
 			this.name = nbt.getString("name");
@@ -316,18 +309,18 @@ public class PumpjackHandler{
 			this.maxSize = nbt.getInt("maxSize");
 			this.replenishRate = nbt.getInt("replenishRate");
 			
-			this.dimWhitelist = toList(nbt.getList("dimensionWhitelist", NBT.TAG_STRING));
-			this.dimBlacklist = toList(nbt.getList("dimensionBlacklist", NBT.TAG_STRING));
+			this.dimWhitelist = toList(nbt.getList("dimensionWhitelist", Tag.TAG_STRING));
+			this.dimBlacklist = toList(nbt.getList("dimensionBlacklist", Tag.TAG_STRING));
 			
-			this.bioWhitelist = toList(nbt.getList("biomeWhitelist", NBT.TAG_STRING));
-			this.bioBlacklist = toList(nbt.getList("biomeBlacklist", NBT.TAG_STRING));
+			this.bioWhitelist = toList(nbt.getList("biomeWhitelist", Tag.TAG_STRING));
+			this.bioBlacklist = toList(nbt.getList("biomeBlacklist", Tag.TAG_STRING));
 		}
 		
-		public CompoundNBT writeToNBT(){
-			return writeToNBT(new CompoundNBT());
+		public CompoundTag writeToNBT(){
+			return writeToNBT(new CompoundTag());
 		}
 		
-		public CompoundNBT writeToNBT(CompoundNBT nbt){
+		public CompoundTag writeToNBT(CompoundTag nbt){
 			nbt.putString("name", this.name);
 			nbt.putString("id", this.id.toString());
 			nbt.putString("fluid", this.fluidLocation.toString());
@@ -369,11 +362,11 @@ public class PumpjackHandler{
 			}
 		}
 		
-		public boolean isValidDimension(@Nonnull World world){
+		public boolean isValidDimension(@Nonnull Level world){
 			if(world == null)
 				return false;
 			
-			return isValidDimension(world.getDimensionKey().getRegistryName());
+			return isValidDimension(world.dimension().getRegistryName());
 		}
 		
 		public boolean isValidDimension(@Nonnull ResourceLocation rl){
@@ -408,7 +401,7 @@ public class PumpjackHandler{
 		}
 		
 		@Override
-		public ItemStack getRecipeOutput(){
+		public ItemStack getResultItem(){
 			return ItemStack.EMPTY;
 		}
 		
@@ -421,20 +414,20 @@ public class PumpjackHandler{
 			return this.writeToNBT().toString();
 		}
 		
-		private List<ResourceLocation> toList(ListNBT nbtList){
+		private List<ResourceLocation> toList(ListTag nbtList){
 			List<ResourceLocation> list = new ArrayList<>(0);
 			if(nbtList.size() > 0){
-				for(INBT tag:nbtList)
-					if(tag instanceof StringNBT)
-						list.add(new ResourceLocation(((StringNBT) tag).getString()));
+				for(Tag tag:nbtList)
+					if(tag instanceof StringTag)
+						list.add(new ResourceLocation(((StringTag) tag).getAsString()));
 			}
 			return list;
 		}
 		
-		private ListNBT toNbt(List<ResourceLocation> list){
-			ListNBT nbtList = new ListNBT();
+		private ListTag toNbt(List<ResourceLocation> list){
+			ListTag nbtList = new ListTag();
 			for(ResourceLocation rl:list){
-				nbtList.add(StringNBT.valueOf(rl.toString()));
+				nbtList.add(StringTag.valueOf(rl.toString()));
 			}
 			return nbtList;
 		}

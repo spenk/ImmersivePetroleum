@@ -1,27 +1,25 @@
 package flaxbeard.immersivepetroleum.common.util.compat.crafttweaker;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
+import blusunrize.immersiveengineering.api.crafting.FluidTagInput;
+import com.blamejared.crafttweaker.api.CraftTweakerAPI;
+import com.blamejared.crafttweaker.api.annotation.ZenRegister;
+import com.blamejared.crafttweaker.api.fluid.IFluidStack;
+import com.blamejared.crafttweaker.api.item.IItemStack;
+import com.blamejared.crafttweaker.api.tag.MCTag;
+import flaxbeard.immersivepetroleum.api.crafting.DistillationRecipe;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Tuple;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraftforge.fluids.FluidStack;
 import org.openzen.zencode.java.ZenCodeType.Constructor;
 import org.openzen.zencode.java.ZenCodeType.Method;
 import org.openzen.zencode.java.ZenCodeType.Name;
 
-import com.blamejared.crafttweaker.api.CraftTweakerAPI;
-import com.blamejared.crafttweaker.api.annotations.ZenRegister;
-import com.blamejared.crafttweaker.api.fluid.IFluidStack;
-import com.blamejared.crafttweaker.api.item.IItemStack;
-import com.blamejared.crafttweaker.impl.tag.MCTag;
-
-import blusunrize.immersiveengineering.api.crafting.FluidTagInput;
-import flaxbeard.immersivepetroleum.api.crafting.DistillationRecipe;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.Tuple;
-import net.minecraftforge.fluids.FluidStack;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @ZenRegister
 @Name("mods.immersivepetroleum.DistillationTower")
@@ -34,17 +32,17 @@ public class DistillationRecipeTweaker{
 				.collect(Collectors.toList());
 		
 		if(test.size() > 1){
-			CraftTweakerAPI.logError("§cMultiple results for \"%s\"§r", name);
+			CraftTweakerAPI.LOGGER.error("§cMultiple results for \"%s\"§r", name);
 		}else if(test.size() == 1){
 			ResourceLocation id = test.get(0);
 			if(DistillationRecipe.recipes.containsKey(id)){
 				DistillationRecipe.recipes.remove(id);
 				return true;
 			}else{
-				CraftTweakerAPI.logError("§c%s does not exist, or was already removed.§r", id);
+				CraftTweakerAPI.LOGGER.error("§c%s does not exist, or was already removed.§r", id);
 			}
 		}else{
-			CraftTweakerAPI.logInfo("\"%s\" does not exist or could not be found.", name);
+			CraftTweakerAPI.LOGGER.error("\"%s\" does not exist or could not be found.", name);
 		}
 		
 		return false;
@@ -75,7 +73,7 @@ public class DistillationRecipeTweaker{
 		@Method
 		public DistillationRecipeBuilder setOutputFluids(IFluidStack[] fluidsOutput){
 			if(fluidsOutput == null || fluidsOutput.length == 0){
-				CraftTweakerAPI.logError("§cDistillationBuilder output fluids can not be null!§r");
+				CraftTweakerAPI.LOGGER.error("§cDistillationBuilder output fluids can not be null!§r");
 				this.isValid = false;
 			}else{
 				this.fluidOutputs = Arrays.asList(fluidsOutput).stream().map(f -> f.getInternal()).collect(Collectors.toList());
@@ -86,10 +84,10 @@ public class DistillationRecipeTweaker{
 		@Method
 		public DistillationRecipeBuilder setInputFluid(MCTag<Fluid> tag, int amount){
 			if(tag == null){
-				CraftTweakerAPI.logError("§cDistillationBuilder expected fluidtag as input fluid!§r");
+				CraftTweakerAPI.LOGGER.error("§cDistillationBuilder expected fluidtag as input fluid!§r");
 				this.isValid = false;
 			}else if(amount <= 0){
-				CraftTweakerAPI.logError("§ccDistillationBuilder fluidtag amount must atleast be 1mB!§r");
+				CraftTweakerAPI.LOGGER.error("§ccDistillationBuilder fluidtag amount must atleast be 1mB!§r");
 				this.isValid = false;
 			}else{
 				this.inputFluidTag = tag;
@@ -106,7 +104,7 @@ public class DistillationRecipeTweaker{
 		@Method
 		public DistillationRecipeBuilder addByproduct(IItemStack item, double chance){
 			if(item == null){
-				CraftTweakerAPI.logError("§cByproduct item can not be null!§r");
+				CraftTweakerAPI.LOGGER.error("§cByproduct item can not be null!§r");
 				this.isValid = false;
 			}else{
 				// Clamping between 0.0 - 1.0
@@ -127,7 +125,7 @@ public class DistillationRecipeTweaker{
 		@Method
 		public DistillationRecipeBuilder setEnergy(int flux){
 			if(flux < 1){
-				CraftTweakerAPI.logError("§cEnergy usage must be atleast 1 flux/tick!§r");
+				CraftTweakerAPI.LOGGER.error("§cEnergy usage must be atleast 1 flux/tick!§r");
 				this.isValid = false;
 			}else{
 				this.fluxEnergy = flux;
@@ -138,7 +136,7 @@ public class DistillationRecipeTweaker{
 		@Method
 		public DistillationRecipeBuilder setTime(int ticks){
 			if(ticks < 1){
-				CraftTweakerAPI.logError("§cProcessing time must be atleast 1 tick!§r");
+				CraftTweakerAPI.LOGGER.error("§cProcessing time must be atleast 1 tick!§r");
 				this.isValid = false;
 			}else{
 				this.timeTicks = ticks;
@@ -149,15 +147,15 @@ public class DistillationRecipeTweaker{
 		@Method
 		public void build(String name){
 			if(name.isEmpty()){
-				CraftTweakerAPI.logError("§cDistillation name can not be empty string!§r");
+				CraftTweakerAPI.LOGGER.error("§cDistillation name can not be empty string!§r");
 				this.isValid = false;
 			}
 			
 			FluidTagInput fluidInTag = null;
 			if(this.inputFluidTag != null){
-				fluidInTag = new FluidTagInput(this.inputFluidTag.getId(), this.inputFluidAmount);
+				fluidInTag = new FluidTagInput(this.inputFluidTag.id(), this.inputFluidAmount);
 			}else{
-				CraftTweakerAPI.logError("§cOutput fluid tag should not be null!§r");
+				CraftTweakerAPI.LOGGER.error("§cOutput fluid tag should not be null!§r");
 				this.isValid = false;
 			}
 			

@@ -1,22 +1,20 @@
 package flaxbeard.immersivepetroleum.api.crafting.builders;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.annotation.Nonnull;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-
 import blusunrize.immersiveengineering.api.ApiUtils;
 import blusunrize.immersiveengineering.api.crafting.builders.IEFinishedRecipe;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import flaxbeard.immersivepetroleum.common.crafting.Serializers;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.ShapedRecipe;
-import net.minecraft.tags.ITag;
+import net.minecraft.tags.Tag;
 import net.minecraft.util.Tuple;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.fluids.FluidStack;
+
+import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Distillation Recipe creation using DataGeneration
@@ -77,7 +75,7 @@ public class DistillationRecipeBuilder extends IEFinishedRecipe<DistillationReci
 		return setTime(time).setEnergy(energy);
 	}
 	
-	public DistillationRecipeBuilder addInput(ITag.INamedTag<Fluid> fluidTag, int amount){
+	public DistillationRecipeBuilder addInput(Tag.Named<Fluid> fluidTag, int amount){
 		return addFluidTag("input", fluidTag, amount);
 	}
 	

@@ -4,95 +4,94 @@ import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IPlayerIn
 import blusunrize.immersiveengineering.common.blocks.IEBlockInterfaces.IReadOnPlacement;
 import flaxbeard.immersivepetroleum.common.blocks.IPBlockBase;
 import flaxbeard.immersivepetroleum.common.blocks.tileentities.GasGeneratorTileEntity;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.material.MaterialColor;
-import net.minecraft.block.material.PushReaction;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.BlockItemUseContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.state.DirectionProperty;
-import net.minecraft.state.StateContainer.Builder;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ActionResultType;
-import net.minecraft.util.Direction;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.BlockRayTraceResult;
-import net.minecraft.util.math.shapes.ISelectionContext;
-import net.minecraft.util.math.shapes.VoxelShape;
-import net.minecraft.util.math.shapes.VoxelShapes;
-import net.minecraft.world.IBlockReader;
-import net.minecraft.world.World;
-import net.minecraftforge.common.ToolType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.material.Material;
+import net.minecraft.world.level.material.MaterialColor;
+import net.minecraft.world.level.material.PushReaction;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class GasGeneratorBlock extends IPBlockBase{
-	private static final Material material = new Material(MaterialColor.IRON, false, false, true, true, false, false, PushReaction.BLOCK);
+public class GasGeneratorBlock extends IPBlockBase {
+	private static final Material material = new Material(MaterialColor.METAL, false, false, true, true, false, false, PushReaction.BLOCK);
 	
 	public static final DirectionProperty FACING = DirectionProperty.create("facing", Direction.Plane.HORIZONTAL);
 	
 	public GasGeneratorBlock(){
-		super("gas_generator", Block.Properties.create(material)
+		super("gas_generator", Block.Properties.of(material)
 				.hardnessAndResistance(5.0F, 6.0F)
 				.harvestTool(ToolType.PICKAXE)
 				.sound(SoundType.METAL)
 				.notSolid());
-		
-		setDefaultState(getStateContainer().getBaseState().with(FACING, Direction.NORTH));
+
+		registerDefaultState(getStateDefinition().any().setValue(FACING, Direction.NORTH));
 	}
 	
 	@Override
-	protected void fillStateContainer(Builder<Block, BlockState> builder){
+	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder){
 		builder.add(FACING);
 	}
 	
 	@Override
-	public int getOpacity(BlockState state, IBlockReader worldIn, BlockPos pos){
+	public int getOpacity(BlockState state, BlockGetter worldIn, BlockPos pos){
 		return 0;
 	}
 	
 	@Override
-	public float getAmbientOcclusionLightValue(BlockState state, IBlockReader worldIn, BlockPos pos){
+	public float getAmbientOcclusionLightValue(BlockState state, BlockGetter worldIn, BlockPos pos){
 		return 1.0F;
 	}
 	
 	@Override
-	public boolean propagatesSkylightDown(BlockState state, IBlockReader reader, BlockPos pos){
+	public boolean propagatesSkylightDown(BlockState state, BlockGetter reader, BlockPos pos){
 		return true;
 	}
 	
 	// Fixes black faces apearing when a solid block is placed next to the generator
 	// at the cost of not being able to put a lever on the generator anymore.
-	static final VoxelShape SHAPE = VoxelShapes.create(0.0001, 0.0001, 0.0001, 0.9999, 0.9999, 0.9999);
+	static final VoxelShape SHAPE = Shapes.create(0.0001, 0.0001, 0.0001, 0.9999, 0.9999, 0.9999);
 	
 	@Override
-	public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context){
+	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context){
 		return SHAPE;
 	}
 	
 	@Override
-	public VoxelShape getCollisionShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context){
+	public VoxelShape getCollisionShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context){
 		return SHAPE;
 	}
 	
 	@Override
-	public ActionResultType onBlockActivated(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn, BlockRayTraceResult hit){
-		TileEntity te = worldIn.getTileEntity(pos);
+	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn, BlockHitResult hit){
+		BlockEntity te = worldIn.getBlockEntity(pos);
 		if(te instanceof IPlayerInteraction){
-			if(((IPlayerInteraction) te).interact(hit.getFace(), player, handIn, player.getHeldItem(handIn), (float) hit.getHitVec().x, (float) hit.getHitVec().y, (float) hit.getHitVec().z)){
-				return ActionResultType.SUCCESS;
+			if(((IPlayerInteraction) te).interact(hit.getDirection(), player, handIn, player.getItemInHand(handIn), (float) hit.getLocation().x, (float) hit.getLocation().y, (float) hit.getLocation().z)){
+				return InteractionResult.SUCCESS;
 			}
 		}
-		return ActionResultType.FAIL;
+		return InteractionResult.FAIL;
 	}
 	
 	@Override
-	public void onBlockPlacedBy(World worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack){
-		if(!worldIn.isRemote){
-			TileEntity te = worldIn.getTileEntity(pos);
+	public void setPlacedBy(Level worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack){
+		if(worldIn.isClientSide){
+			BlockEntity te = worldIn.getBlockEntity(pos);
 			if(te instanceof IReadOnPlacement){
 				((IReadOnPlacement) te).readOnPlacement(placer, stack);
 			}
@@ -100,8 +99,8 @@ public class GasGeneratorBlock extends IPBlockBase{
 	}
 	
 	@Override
-	public BlockState getStateForPlacement(BlockItemUseContext context){
-		return getDefaultState().with(FACING, context.getPlacementHorizontalFacing().getOpposite());
+	public BlockState getStateForPlacement(BlockPlaceContext context){
+		return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
 	}
 	
 	@Override
@@ -110,9 +109,9 @@ public class GasGeneratorBlock extends IPBlockBase{
 	}
 	
 	@Override
-	public TileEntity createTileEntity(BlockState state, IBlockReader world){
-		GasGeneratorTileEntity te = new GasGeneratorTileEntity();
-		te.setFacing(state.get(FACING));
+	public BlockEntity newBlockEntity(BlockPos pos, BlockState state){
+		GasGeneratorTileEntity te = new GasGeneratorTileEntity(pos, state);
+		te.setFacing(state.getValue(FACING));
 		return te;
 	}
 }

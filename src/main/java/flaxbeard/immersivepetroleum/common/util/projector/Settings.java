@@ -1,23 +1,22 @@
 package flaxbeard.immersivepetroleum.common.util.projector;
 
-import java.util.function.Supplier;
-
-import javax.annotation.Nullable;
-
 import blusunrize.immersiveengineering.api.multiblocks.MultiblockHandler;
 import blusunrize.immersiveengineering.api.multiblocks.MultiblockHandler.IMultiblock;
 import flaxbeard.immersivepetroleum.common.network.MessageProjectorSync;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.util.Hand;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.Rotation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TranslationTextComponent;
-import net.minecraftforge.common.util.Constants.NBT;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Rotation;
+
+import javax.annotation.Nullable;
+import java.util.function.Supplier;
 
 public class Settings{
 	public static final String KEY_SELF = "settings";
@@ -37,40 +36,40 @@ public class Settings{
 	private boolean isPlaced;
 	
 	public Settings(){
-		this(new CompoundNBT());
+		this(new CompoundTag());
 	}
 	
 	public Settings(@Nullable final ItemStack stack){
-		this(((Supplier<CompoundNBT>) () -> {
-			CompoundNBT nbt = null;
-			if(stack != null && (nbt = stack.getChildTag(KEY_SELF)) == null){
+		this(((Supplier<CompoundTag>) () -> {
+			CompoundTag nbt = null;
+			if(stack != null && (nbt = stack.getTagElement(KEY_SELF)) == null){
 				// Fail-Safe, checks if what it got is null and if that's
 				// the case just gives it an empty compound
-				nbt = new CompoundNBT();
+				nbt = new CompoundTag();
 			}
 			return nbt;
 		}).get());
 	}
 	
-	public Settings(CompoundNBT settingsNbt){
+	public Settings(CompoundTag settingsNbt){
 		if(settingsNbt == null || settingsNbt.isEmpty()){
 			this.mode = Mode.MULTIBLOCK_SELECTION;
 			this.rotation = Rotation.NONE;
 			this.mirror = false;
 			this.isPlaced = false;
 		}else{
-			this.mode = Mode.values()[MathHelper.clamp(settingsNbt.getInt(KEY_MODE), 0, Mode.values().length - 1)];
+			this.mode = Mode.values()[Mth.clamp(settingsNbt.getInt(KEY_MODE), 0, Mode.values().length - 1)];
 			this.rotation = Rotation.values()[settingsNbt.contains(KEY_ROTATION) ? settingsNbt.getInt(KEY_ROTATION) : 0];
 			this.mirror = settingsNbt.getBoolean(KEY_MIRROR);
 			this.isPlaced = settingsNbt.getBoolean(KEY_PLACED);
 			
-			if(settingsNbt.contains(KEY_MULTIBLOCK, NBT.TAG_STRING)){
+			if(settingsNbt.contains(KEY_MULTIBLOCK, Tag.TAG_STRING)){
 				String str = settingsNbt.getString("multiblock");
 				this.multiblock = MultiblockHandler.getByUniqueName(new ResourceLocation(str));
 			}
 			
-			if(settingsNbt.contains(KEY_POSITION, NBT.TAG_COMPOUND)){
-				CompoundNBT pos = settingsNbt.getCompound("pos");
+			if(settingsNbt.contains(KEY_POSITION, Tag.TAG_COMPOUND)){
+				CompoundTag pos = settingsNbt.getCompound("pos");
 				int x = pos.getInt("x");
 				int y = pos.getInt("y");
 				int z = pos.getInt("z");
@@ -81,12 +80,12 @@ public class Settings{
 	
 	/** Rotate by 90° Clockwise */
 	public void rotateCW(){
-		this.rotation = this.rotation.add(Rotation.CLOCKWISE_90);
+		this.rotation = this.rotation.getRotated(Rotation.CLOCKWISE_90);
 	}
 	
 	/** Rotate by 90° Counter-Clockwise */
 	public void rotateCCW(){
-		this.rotation = this.rotation.add(Rotation.COUNTERCLOCKWISE_90);
+		this.rotation = this.rotation.getRotated(Rotation.COUNTERCLOCKWISE_90);
 	}
 	
 	public void flip(){
@@ -98,11 +97,11 @@ public class Settings{
 		this.mode = Mode.values()[id % Mode.values().length];
 	}
 	
-	public void sendPacketToServer(Hand hand){
+	public void sendPacketToServer(InteractionHand hand){
 		MessageProjectorSync.sendToServer(this, hand);
 	}
 	
-	public void sendPacketToClient(PlayerEntity player, Hand hand){
+	public void sendPacketToClient(Player player, InteractionHand hand){
 		MessageProjectorSync.sendToClient(player, this, hand);
 	}
 	
@@ -160,8 +159,8 @@ public class Settings{
 		return this.multiblock;
 	}
 	
-	public CompoundNBT toNbt(){
-		CompoundNBT nbt = new CompoundNBT();
+	public CompoundTag toNbt(){
+		CompoundTag nbt = new CompoundTag();
 		nbt.putInt(KEY_MODE, this.mode.ordinal());
 		nbt.putInt(KEY_ROTATION, this.rotation.ordinal());
 		nbt.putBoolean(KEY_MIRROR, this.mirror);
@@ -172,7 +171,7 @@ public class Settings{
 		}
 		
 		if(this.pos != null){
-			CompoundNBT pos = new CompoundNBT();
+			CompoundTag pos = new CompoundTag();
 			pos.putInt("x", this.pos.getX());
 			pos.putInt("y", this.pos.getY());
 			pos.putInt("z", this.pos.getZ());
@@ -183,7 +182,7 @@ public class Settings{
 	}
 	
 	public ItemStack applyTo(ItemStack stack){
-		stack.getOrCreateChildTag("settings");
+		stack.getOrCreateTagElement("settings");
 		stack.getTag().put("settings", this.toNbt());
 		return stack;
 	}
@@ -201,8 +200,8 @@ public class Settings{
 			this.translation = "desc.immersivepetroleum.info.projector.mode_" + ordinal();
 		}
 		
-		public ITextComponent getTranslated(){
-			return new TranslationTextComponent(this.translation);
+		public Component getTranslated(){
+			return new TranslatableComponent(this.translation);
 		}
 	}
 }

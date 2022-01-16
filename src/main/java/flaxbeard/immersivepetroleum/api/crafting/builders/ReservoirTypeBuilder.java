@@ -1,13 +1,12 @@
 package flaxbeard.immersivepetroleum.api.crafting.builders;
 
+import blusunrize.immersiveengineering.api.crafting.builders.IEFinishedRecipe;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-
-import blusunrize.immersiveengineering.api.crafting.builders.IEFinishedRecipe;
 import flaxbeard.immersivepetroleum.common.crafting.Serializers;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.material.Fluid;
 
 public class ReservoirTypeBuilder extends IEFinishedRecipe<ReservoirTypeBuilder>{
 	private String fluid;

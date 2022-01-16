@@ -1,11 +1,6 @@
 package flaxbeard.immersivepetroleum.common.util.compat.jei;
 
-import java.text.DecimalFormat;
-import java.util.Arrays;
-import java.util.Locale;
-
-import com.mojang.blaze3d.matrix.MatrixStack;
-
+import com.mojang.blaze3d.vertex.PoseStack;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.api.crafting.SulfurRecoveryRecipe;
 import flaxbeard.immersivepetroleum.common.IPContent;
@@ -18,11 +13,15 @@ import mezz.jei.api.gui.ingredient.IGuiItemStackGroup;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.ingredients.IIngredients;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.resources.I18n;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
+
+import java.text.DecimalFormat;
+import java.util.Arrays;
+import java.util.Locale;
 
 public class SulfurRecoveryRecipeCategory extends IPRecipeCategory<SulfurRecoveryRecipe>{
 	public static final ResourceLocation ID = new ResourceLocation(ImmersivePetroleum.MODID, "hydrotreater");
@@ -69,26 +68,26 @@ public class SulfurRecoveryRecipeCategory extends IPRecipeCategory<SulfurRecover
 	}
 	
 	@Override
-	public void draw(SulfurRecoveryRecipe recipe, MatrixStack matrix, double mouseX, double mouseY){
+	public void draw(SulfurRecoveryRecipe recipe, PoseStack matrix, double mouseX, double mouseY){
 		super.draw(recipe, matrix, mouseX, mouseY);
 		DecimalFormat formatter = new DecimalFormat("#.##");
 		
 		IDrawable background = getBackground();
 		int bWidth = background.getWidth();
 		int bHeight = background.getHeight();
-		FontRenderer font = Minecraft.getInstance().fontRenderer;
+		Font font = Minecraft.getInstance().font;
 		
 		int time = recipe.getTotalProcessTime();
 		int energy = recipe.getTotalProcessEnergy();
 		int chance = (int)(100 * recipe.chance);
 		
-		String text0 = I18n.format("desc.immersiveengineering.info.ift", formatter.format(energy));
-		font.drawString(matrix, text0, bWidth / 2 - font.getStringWidth(text0) / 2, bHeight - (font.FONT_HEIGHT * 2), 0);
+		String text0 = I18n.get("desc.immersiveengineering.info.ift", formatter.format(energy));
+		font.draw(matrix, text0, bWidth / 2 - font.width(text0) / 2, bHeight - (font.lineHeight * 2), 0);
 
-		String text1 = I18n.format("desc.immersiveengineering.info.seconds", formatter.format(time / 20D));
-		font.drawString(matrix, text1, bWidth / 2 - font.getStringWidth(text1) / 2, bHeight - font.FONT_HEIGHT, 0);
+		String text1 = I18n.get("desc.immersiveengineering.info.seconds", formatter.format(time / 20D));
+		font.draw(matrix, text1, bWidth / 2 - font.width(text1) / 2, bHeight - font.lineHeight, 0);
 		
 		String text2 = String.format(Locale.US, "%d%%", chance);
-		font.drawString(matrix, text2, bWidth+3 - font.getStringWidth(text2), bHeight / 2 + 4, 0);
+		font.draw(matrix, text2, bWidth+3 - font.width(text2), bHeight / 2 + 4, 0);
 	}
 }

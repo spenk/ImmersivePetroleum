@@ -2,13 +2,14 @@ package flaxbeard.immersivepetroleum.client.model;
 
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.vertex.IVertexBuilder;
-
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.model.ModelRenderer;
 
 public class ModelLubricantPipes{
 	
-	public static class Crusher extends IPModel{
+	public static class Crusher extends IPModel {
 		public static final String ID = "crusher_lubepipes";
 		
 		private ModelRenderer origin;
@@ -65,21 +66,21 @@ public class ModelLubricantPipes{
 			p9.rotateAngleZ = (float) Math.toRadians(90);
 			this.origin.addChild(p9);
 		}
-		
+
 		@Override
-		public void render(MatrixStack matrixStackIn, IVertexBuilder bufferIn, int packedLightIn, int packedOverlayIn, float red, float green, float blue, float alpha){
+		public void renderToBuffer(PoseStack matrixStackIn, VertexConsumer bufferIn, int packedLightIn, int packedOverlayIn, float red, float green, float blue, float alpha) {
 			this.origin.render(matrixStackIn, bufferIn, packedLightIn, packedOverlayIn, red, green, blue, alpha);
 		}
 	}
 	
-	public static class Excavator extends IPModel{
+	public static class Excavator extends IPModel {
 		public static final String ID_NORMAL = "excavator_lubepipes_normal";
 		public static final String ID_MIRRORED = "excavator_lubepipes_mirrored";
 		
 		private ModelRenderer origin;
 		private boolean mirrored;
 		public Excavator(boolean mirror){
-			super(RenderType::getEntitySolid);
+			super(RenderType::entitySolid);
 			this.mirrored = mirror;
 			
 			this.textureWidth = this.textureHeight = 16;

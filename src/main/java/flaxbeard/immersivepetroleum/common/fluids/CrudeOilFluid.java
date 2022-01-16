@@ -1,6 +1,6 @@
 package flaxbeard.immersivepetroleum.common.fluids;
 
-import net.minecraft.world.IWorldReader;
+import net.minecraft.world.level.LevelReader;
 
 public class CrudeOilFluid extends IPFluid{
 	public CrudeOilFluid(){
@@ -8,7 +8,7 @@ public class CrudeOilFluid extends IPFluid{
 	}
 	
 	@Override
-	public int getTickRate(IWorldReader p_205569_1_){
+	public int getTickDelay(LevelReader p_205569_1_){
 		return 10;
 	}
 }

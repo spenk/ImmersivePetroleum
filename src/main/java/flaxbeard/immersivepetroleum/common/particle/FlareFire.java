@@ -1,83 +1,83 @@
 package flaxbeard.immersivepetroleum.common.particle;
 
-import java.util.Random;
-
+import com.mojang.math.Vector3f;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.particle.IAnimatedSprite;
-import net.minecraft.client.particle.IParticleFactory;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
+import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.SimpleAnimatedParticle;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.particles.BasicParticleType;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.vector.Vector3f;
+import net.minecraft.client.particle.SpriteSet;
+import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.util.Mth;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
+import org.jetbrains.annotations.Nullable;
 
-public class FlareFire extends SimpleAnimatedParticle{
+import java.util.Random;
+
+public class FlareFire extends SimpleAnimatedParticle {
 	final double ogMotionY;
 	final float red, green, blue;
 	final float rotation;
-	protected FlareFire(ClientWorld world, double x, double y, double z, double motionX, double motionY, double motionZ, IAnimatedSprite spriteWithAge){
+	protected FlareFire(ClientLevel world, double x, double y, double z, double motionX, double motionY, double motionZ, SpriteSet spriteWithAge){
 		super(world, x, y, z, spriteWithAge, 0.0F);
 		setSize(0.5F, 0.5F);
-		selectSpriteWithAge(spriteWithAge);
-		setBaseAirFriction(1.0F);
+		setSpriteFromAge(spriteWithAge);
 		setColor(1.0F, 1.0F, 1.0F);
-		setMaxAge(60);
+		setLifetime(60);
 		// this.canCollide = false;
-		this.particleScale = 8 / 16F;
+		scale(8 / 16F);
 		
 		this.red = this.green = this.blue = 1.0F;
 		
 		this.ogMotionY = motionY;
 		
-		this.rotation = 0.250F * (world.rand.nextFloat() - 0.5F);
+		this.rotation = 0.250F * (world.random.nextFloat() - 0.5F);
 		
-		this.prevParticleAngle = 360.0F * world.rand.nextFloat();
-		this.particleAngle = this.prevParticleAngle + (this.rotation * world.rand.nextFloat());
+		this.oRoll = 360.0F * world.random.nextFloat();
+		this.roll = this.oRoll + (this.rotation * world.random.nextFloat());
 		
 		// These arent actualy used, setting them to 0 anyway though just incase
-		this.motionX = this.motionY = this.motionZ = 0.0;
+		this.xd = this.yd = this.zd = 0.0;
+		this.friction = 1.0F;
 	}
 	
 	@Override
 	public void tick(){
-		float f = (this.age / (float) this.maxAge);
+		float f = (this.age / (float) this.lifetime);
 		Vector3f vec = Wind.getDirection();
 		
-		if(this.age++ >= this.maxAge){
-			setExpired();
+		if(this.age++ >= this.lifetime){
+			remove();
 		}
-		if(this.age == this.maxAge - 36){
-			this.particleRed = this.particleGreen = this.particleBlue = (float)(0.4F * Math.random());
+		if(this.age == this.lifetime - 36){
+			this.rCol = this.gCol = this.bCol = (float)(0.4F * Math.random());
 		}
-		selectSpriteWithAge(this.spriteWithAge);
+		setSpriteFromAge(this.sprites);
 		
-		this.prevPosX = this.posX;
-		this.prevPosY = this.posY;
-		this.prevPosZ = this.posZ;
-		this.prevParticleAngle = this.particleAngle;
+		this.xo = this.x;
+		this.yo = this.y;
+		this.zo = this.z;
+		this.oRoll = this.roll;
 		
-		this.move(vec.getX() * f, this.ogMotionY * (1F - f), vec.getZ() * f);
-		this.particleAngle += this.rotation;
+		this.move(vec.x() * f, this.ogMotionY * (1F - f), vec.z() * f);
+		this.roll += this.rotation;
 	}
-	
-	@OnlyIn(Dist.CLIENT)
-	public static class Factory implements IParticleFactory<BasicParticleType>{
-		private final IAnimatedSprite spriteSet;
+
+	public static class Factory implements ParticleProvider<SimpleParticleType> {
+		private final SpriteSet spriteSet;
 		
-		public Factory(IAnimatedSprite spriteSet){
+		public Factory(SpriteSet spriteSet){
 			this.spriteSet = spriteSet;
 		}
-		
+
+		@Nullable
 		@Override
-		public Particle makeParticle(BasicParticleType typeIn, ClientWorld worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed){
+		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
 			return new FlareFire(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, this.spriteSet);
 		}
 	}
@@ -101,7 +101,7 @@ public class FlareFire extends SimpleAnimatedParticle{
 		@SubscribeEvent
 		public static void clientTick(TickEvent.ClientTickEvent event){
 			if(event.side == LogicalSide.CLIENT && event.phase == TickEvent.Phase.START){
-				ClientWorld world = Minecraft.getInstance().world;
+				ClientLevel world = Minecraft.getInstance().level;
 				if(world == null)
 					return;
 				
@@ -110,14 +110,14 @@ public class FlareFire extends SimpleAnimatedParticle{
 					lastGT = gameTime / 20;
 					
 					double fGameTime = (gameTime / 20D);
-					Random lastRand = new Random(MathHelper.floor(fGameTime));
-					Random thisRand = new Random(MathHelper.ceil(fGameTime));
+					Random lastRand = new Random(Mth.floor(fGameTime));
+					Random thisRand = new Random(Mth.ceil(fGameTime));
 					
 					lastDirection = lastRand.nextFloat() * 360;
 					thisDirection = thisRand.nextFloat() * 360;
 				}
 				
-				double interpDirection = MathHelper.lerp(((gameTime % 20) / 20F), lastDirection, thisDirection);
+				double interpDirection = Mth.lerp(((gameTime % 20) / 20F), lastDirection, thisDirection);
 				
 				float xSpeed = (float) Math.sin(interpDirection) * .1F;
 				float zSpeed = (float) Math.cos(interpDirection) * .1F;

@@ -1,33 +1,32 @@
 package flaxbeard.immersivepetroleum.common.util.compat.crafttweaker;
 
+import com.blamejared.crafttweaker.api.CraftTweakerAPI;
+import com.blamejared.crafttweaker.api.annotation.ZenRegister;
+import com.blamejared.crafttweaker.api.tag.MCTag;
+import com.blamejared.crafttweaker.api.util.Many;
+import flaxbeard.immersivepetroleum.api.crafting.LubricantHandler;
+import net.minecraft.tags.Tag;
+import net.minecraft.world.level.material.Fluid;
 import org.openzen.zencode.java.ZenCodeType.Method;
 import org.openzen.zencode.java.ZenCodeType.Name;
 
-import com.blamejared.crafttweaker.api.CraftTweakerAPI;
-import com.blamejared.crafttweaker.api.annotations.ZenRegister;
-import com.blamejared.crafttweaker.impl.tag.MCTagWithAmount;
-
-import flaxbeard.immersivepetroleum.api.crafting.LubricantHandler;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.tags.ITag;
-
 @ZenRegister
 @Name("mods.immersivepetroleum.Lubricant")
-public class LubricantRegistryTweaker{
+public class LubricantRegistryTweaker {
 	
 	@SuppressWarnings("unchecked")
 	@Method
-	public static void register(MCTagWithAmount<Fluid> tag){
+	public static void register(Many<MCTag<Fluid>> tag){
 		if(tag == null){
-			CraftTweakerAPI.logError("§cLubricantRegistry: Expected fluidtag as input fluid!§r");
+			CraftTweakerAPI.LOGGER.error("§cLubricantRegistry: Expected fluidtag as input fluid!§r");
 			return;
 		}
 		
 		if(tag.getAmount() < 1){
-			CraftTweakerAPI.logError("§cLubricantRegistry: Amount must atleast be 1mB!§r");
+			CraftTweakerAPI.LOGGER.error("§cLubricantRegistry: Amount must atleast be 1mB!§r");
 			return;
 		}
 		
-		LubricantHandler.register((ITag<Fluid>) tag.getTag().getInternal(), tag.getAmount());
+		LubricantHandler.register((Tag<Fluid>) tag.getData().getInternal(), tag.getAmount());
 	}
 }

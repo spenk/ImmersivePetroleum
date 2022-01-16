@@ -1,14 +1,12 @@
 package flaxbeard.immersivepetroleum.client.model;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
-import com.mojang.blaze3d.vertex.IVertexBuilder;
-
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import flaxbeard.immersivepetroleum.ImmersivePetroleum;
 import flaxbeard.immersivepetroleum.client.render.IPRenderTypes;
-import net.minecraft.client.renderer.model.ModelRenderer;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
 
-public class ModelPumpjack extends IPModel{
+public class ModelPumpjack extends IPModel {
 	public static final String ID = "pumpjackarm";
 	public static final ResourceLocation TEXTURE = new ResourceLocation(ImmersivePetroleum.MODID, "textures/models/pumpjack_armature.png");
 	
@@ -81,7 +79,7 @@ public class ModelPumpjack extends IPModel{
 	}
 	
 	@Override
-	public void render(MatrixStack matrixStackIn, IVertexBuilder bufferIn, int packedLightIn, int packedOverlayIn, float red, float green, float blue, float alpha){
+	public void render(PoseStack matrixStackIn, VertexConsumer bufferIn, int packedLightIn, int packedOverlayIn, float red, float green, float blue, float alpha){
 		arm.rotateAngleZ = (float) Math.toRadians(15 * Math.sin(ticks / 25D));
 		swingy.rotateAngleZ = (float) (2 * (Math.PI / 4) + (ticks / 25D));
 		

@@ -1,10 +1,10 @@
 package flaxbeard.immersivepetroleum.common.util.commands;
 
-import net.minecraft.command.CommandSource;
-import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.TranslatableComponent;
 
 public class CommandUtils{
-	static void sendHelp(CommandSource commandSource, String subIdent){
-		commandSource.sendFeedback(new TranslationTextComponent("chat.immersivepetroleum.command.reservoir" + subIdent + ".help"), true);
+	static void sendHelp(CommandSourceStack commandSource, String subIdent){
+		commandSource.sendSuccess(new TranslatableComponent("chat.immersivepetroleum.command.reservoir" + subIdent + ".help"), true);
 	}
 }
